@@ -1,0 +1,124 @@
+/* ─── StatCard ─────────────────────────────────────────────────── */
+.statCard {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.statCard:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+.statTop { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.statIcon { font-size: 28px; }
+.trend { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+.up   { background: var(--success-bg); color: var(--success); }
+.down { background: var(--danger-bg); color: var(--danger); }
+
+.statValue {
+  font-family: 'Sora', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.statLabel { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+
+/* Color accents */
+.brand  { border-top: 3px solid var(--brand); }
+.success{ border-top: 3px solid var(--success); }
+.warning{ border-top: 3px solid var(--warning); }
+.danger { border-top: 3px solid var(--danger); }
+.info   { border-top: 3px solid var(--info); }
+
+/* ─── Badge ────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge.success { background: var(--success-bg); color: #15803d; }
+.badge.warning { background: var(--warning-bg); color: #92400e; }
+.badge.danger  { background: var(--danger-bg);  color: #991b1b; }
+.badge.info    { background: var(--info-bg);    color: #1e40af; }
+.badge.brand   { background: var(--brand-light); color: var(--brand-dark); }
+.badge.default { background: var(--surface-3);  color: var(--text-secondary); }
+
+/* ─── Spinner ──────────────────────────────────────────────────── */
+.spinnerCenter { display: flex; justify-content: center; align-items: center; padding: 48px; }
+.spinner {
+  border-radius: 50%;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--brand);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner_sm { width: 16px; height: 16px; }
+.spinner_md { width: 32px; height: 32px; }
+.spinner_lg { width: 48px; height: 48px; }
+
+/* ─── Empty State ──────────────────────────────────────────────── */
+.empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 64px 24px; text-align: center;
+}
+.emptyIcon { font-size: 48px; margin-bottom: 16px; opacity: 0.7; }
+.emptyTitle { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+.emptyMsg { font-size: 14px; color: var(--text-muted); max-width: 320px; }
+
+/* ─── Card ─────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+.cardPadded { padding: 24px; }
+
+/* ─── Section Header ───────────────────────────────────────────── */
+.sectionHeader {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 20px;
+}
+.sectionTitle { font-size: 18px; font-weight: 700; font-family: 'Sora', sans-serif; }
+
+/* ─── Confirm Dialog ───────────────────────────────────────────── */
+.dialogBackdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+  padding: 16px;
+}
+.dialog {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  max-width: 380px; width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+.dialogTitle { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.dialogMsg { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; }
+.dialogActions { display: flex; gap: 10px; justify-content: flex-end; }
+.btnGhost {
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  background: var(--surface-3); border: none;
+  font-size: 14px; font-weight: 600; color: var(--text-secondary);
+  transition: background 0.15s;
+}
+.btnGhost:hover { background: var(--border); }
+.btnDanger {
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  background: var(--danger); border: none;
+  font-size: 14px; font-weight: 600; color: #fff;
+  transition: background 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.btnDanger:hover { background: #dc2626; }
+.btnDanger:disabled { opacity: 0.7; cursor: not-allowed; }
