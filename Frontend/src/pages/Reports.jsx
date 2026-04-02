@@ -1,7 +1,7 @@
 // Reports.jsx
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchStats, fetchBikes, selectBikeStats, selectBikes } from "../features/bikes/bikeSlice";
+import { fetchStats, fetchBikes, selectBikeStats, selectBikes } from "../features/bikes/bikesSlice";
 import { Spinner, Card, SectionHeader } from "../components/UI";
 
 const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
@@ -65,7 +65,7 @@ export default function Reports() {
             {stats.monthly.map((m) => {
               const maxRev = Math.max(...stats.monthly.map((x) => x.revenue), 1);
               return (
-                <div key={`${m._id.year}-${m._id.month}`} className="flex flex-col items-center gap-1 min-w-[40px] flex-1">
+                <div key={`${m._id.year}-${m._id.month}`} className="flex flex-col items-center gap-1 min-w-10 flex-1">
                   <div className="flex items-end gap-1 h-24">
                     <div className="w-4 bg-blue-200 rounded-t transition-all" style={{ height: `${(m.revenue / maxRev) * 96}px` }} title={`Revenue: ${fmt(m.revenue)}`} />
                     <div className={`w-4 rounded-t transition-all ${m.profit >= 0 ? "bg-green-400" : "bg-red-400"}`}

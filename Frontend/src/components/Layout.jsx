@@ -21,7 +21,7 @@ export default function Layout() {
       {/* Main area */}
       <div className="flex-1 flex flex-col md:ml-60">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-4 md:p-6 max-w-screen-xl w-full">
+        <main className="flex-1 p-4 md:p-6 max-w-7xl w-full">
           <div className="page-enter">
             <Outlet />
           </div>

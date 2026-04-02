@@ -83,7 +83,7 @@ export function SectionHeader({ title, children }) {
 /* ─── ConfirmDialog ─────────────────────────────────────────────── */
 export function ConfirmDialog({ title, message, onConfirm, onCancel, loading }) {
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-100 p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-7 w-full max-w-sm animate-in fade-in zoom-in-95">
         <h3 className="font-display text-lg font-bold text-slate-900 mb-2">{title}</h3>
         <p className="text-sm text-slate-500 mb-6">{message}</p>

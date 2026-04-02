@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchBike, deleteBike, selectCurrentBike, selectBikeLoading } from "../features/bikes/bikeSlice";
+import { fetchBike, deleteBike, selectCurrentBike, selectBikeLoading } from "../features/bikes/bikesSlice";
 import { selectIsAdmin } from "../features/auth/authSlice";
 import { StatusBadge, Spinner } from "../components/UI";
 import toast from "react-hot-toast";
@@ -80,7 +80,7 @@ export default function BikeDetail() {
         <div className="flex gap-3 overflow-x-auto pb-1">
           {bike.images.map((img) => (
             <img key={img.public_id} src={img.url} alt={bike.model}
-              className="w-48 h-36 object-cover rounded-2xl border border-slate-100 flex-shrink-0" />
+              className="w-48 h-36 object-cover rounded-2xl border border-slate-100 shrink-0" />
           ))}
         </div>
       )}

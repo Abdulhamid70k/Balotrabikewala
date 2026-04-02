@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   fetchBikes, deleteBike,
   selectBikes, selectBikeLoading, selectPagination,
-} from "../features/bikes/bikeSlice";
+} from "../features/bikes/bikesSlice";
 import { selectIsAdmin } from "../features/auth/authSlice";
 import { StatusBadge, Spinner, EmptyState, ConfirmDialog } from "../components/UI";
 import toast from "react-hot-toast";
@@ -70,7 +70,7 @@ export default function StockList() {
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative flex-1 min-w-50">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm pointer-events-none">🔍</span>
           <input
             className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-50 transition-all"

@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   createBike, updateBike, fetchBike,
   selectCurrentBike, selectBikeLoading, clearBikeMessages, clearCurrentBike,
-} from "../features/bikes/bikeSlice";
+} from "../features/bikes/bikesSlice";
 import { Spinner } from "../components/UI";
 import toast from "react-hot-toast";
 
@@ -221,9 +221,9 @@ export default function BikeForm() {
       <div className={sec}>
         <h3 className={secT}>🔧 Service Details</h3>
         <div className="flex gap-2 mb-3 flex-wrap">
-          <input className={`${inp()} flex-[2] min-w-[140px]`} value={svcName} onChange={(e) => setSvcName(e.target.value)}
+          <input className={`${inp()} flex-2 min-w-35`} value={svcName} onChange={(e) => setSvcName(e.target.value)}
             placeholder="Service item (Engine oil...)" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSvc())} />
-          <input className={`${inp()} flex-1 min-w-[90px]`} type="number" value={svcCost} onChange={(e) => setSvcCost(e.target.value)} placeholder="Cost (₹)" />
+          <input className={`${inp()} flex-1 min-w-22.5`} type="number" value={svcCost} onChange={(e) => setSvcCost(e.target.value)} placeholder="Cost (₹)" />
           <button type="button" onClick={addSvc}
             className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-colors whitespace-nowrap">
             + Add
@@ -367,7 +367,7 @@ export default function BikeForm() {
           Cancel
         </button>
         <button type="submit" disabled={loading}
-          className="px-8 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-[0.99] disabled:opacity-60 text-white font-bold text-sm transition-all flex items-center gap-2 min-w-[150px] justify-center">
+          className="px-8 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-[0.99] disabled:opacity-60 text-white font-bold text-sm transition-all flex items-center gap-2 min-w-37.5 justify-center">
           {loading ? <Spinner size="sm" /> : isEdit ? "💾 Update Bike" : "➕ Bike Add Karo"}
         </button>
       </div>

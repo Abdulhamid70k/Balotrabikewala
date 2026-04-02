@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import { fetchStats, fetchBikes, selectBikeStats, selectBikes } from "../features/bikes/bikeSlice";
+import { fetchStats, fetchBikes, selectBikeStats, selectBikes } from "../features/bikes/bikesSlice";
 import { selectCurrentUser } from "../features/auth/authSlice";
 import { StatCard, StatusBadge, Spinner, Card, SectionHeader } from "../components/UI";
 
@@ -62,7 +62,7 @@ export default function Dashboard() {
             <div className="space-y-4">
               {stats.monthly.map((m) => (
                 <div key={`${m._id.year}-${m._id.month}`} className="flex items-center gap-3">
-                  <span className="text-xs font-semibold text-slate-400 w-8 flex-shrink-0">
+                  <span className="text-xs font-semibold text-slate-400 w-8 shrink-0">
                     {MONTHS[m._id.month - 1]}
                   </span>
                   <div className="flex-1 space-y-1.5">
