@@ -4,24 +4,11 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   createBike, updateBike, fetchBike,
   selectCurrentBike, selectBikeLoading, clearBikeMessages, clearCurrentBike,
-} from "../features/bikes/bikesslice";
+} from "../features/bikes/bikeSlice";
 import { Spinner } from "../components/UI";
 import toast from "react-hot-toast";
-import styles from "./BikeForm.module.css";
 
-const INIT = {
-  model: "", year: "", color: "", registrationNumber: "", status: "in_stock",
-  "purchase.buyFrom": "", "purchase.buyDate": "", "purchase.buyPrice": "",
-  "service.totalCost": "", "service.notes": "",
-  "rc.transferred": false, "rc.charge": "", "rc.transferDate": "",
-  "sale.sellPrice": "", "sale.sellDate": "", "sale.paymentType": "cash",
-  "sale.cash.amountPaid": "", "sale.cash.amountDue": "", "sale.cash.dueDate": "",
-  "sale.finance.companyName": "", "sale.finance.financeAmount": "",
-  "sale.finance.emiAmount": "", "sale.finance.emiMonths": "", "sale.finance.startDate": "",
-  notes: "",
-};
-
-// Flatten nested object for form fields
+/* ─── Flatten / nest helpers ─────────────────────────────────── */
 const flatten = (obj, prefix = "") =>
   Object.keys(obj).reduce((acc, k) => {
     const key = prefix ? `${prefix}.${k}` : k;
@@ -31,7 +18,6 @@ const flatten = (obj, prefix = "") =>
     return acc;
   }, {});
 
-// Convert flat form values → nested object for API
 const nest = (flat) => {
   const result = {};
   for (const [key, val] of Object.entries(flat)) {
@@ -46,82 +32,109 @@ const nest = (flat) => {
   return result;
 };
 
+const INIT = {
+  model: "", year: "", color: "", registrationNumber: "", status: "in_stock",
+  "purchase.buyFrom": "", "purchase.buyDate": "", "purchase.buyPrice": "",
+  "service.totalCost": "", "service.notes": "",
+  "rc.transferred": false, "rc.charge": "", "rc.transferDate": "",
+  "sale.sellPrice": "", "sale.sellDate": "", "sale.paymentType": "cash",
+  "sale.cash.amountPaid": "", "sale.cash.amountDue": "", "sale.cash.dueDate": "",
+  "sale.finance.companyName": "", "sale.finance.financeAmount": "",
+  "sale.finance.emiAmount": "", "sale.finance.emiMonths": "", "sale.finance.startDate": "",
+  notes: "",
+};
+
+/* ─── Reusable primitives ────────────────────────────────────── */
+const inp = (err = false) =>
+  `w-full px-3.5 py-2.5 rounded-xl border text-sm bg-slate-50 text-slate-900 outline-none transition-all
+   focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-50
+   ${err ? "border-red-400" : "border-slate-200"}`;
+
+function Field({ label, error, children }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-500 mb-1.5">{label}</label>
+      {children}
+      {error && <p className="text-red-500 text-xs mt-1 font-medium">{error}</p>}
+    </div>
+  );
+}
+
+function RadioCard({ label, value, current, onChange }) {
+  const active = current === value;
+  return (
+    <label className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all text-sm font-semibold select-none
+      ${active
+        ? "border-orange-400 bg-orange-50 text-orange-700"
+        : "border-slate-200 bg-slate-50 text-slate-500 hover:border-orange-200 hover:bg-orange-50/40"}`}>
+      <input type="radio" value={value} checked={active} onChange={() => onChange(value)} className="hidden" />
+      {label}
+    </label>
+  );
+}
+
+const sec  = "bg-white rounded-2xl border border-slate-100 shadow-card p-5 md:p-6";
+const secT = "font-display font-bold text-sm text-orange-700 mb-4 pb-2.5 border-b-2 border-orange-100";
+
 export default function BikeForm() {
-  const { id } = useParams();
-  const isEdit = Boolean(id);
+  const { id }   = useParams();
+  const isEdit   = Boolean(id);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const loading = useSelector(selectBikeLoading);
-  const currentBike = useSelector(selectCurrentBike);
+  const loading  = useSelector(selectBikeLoading);
+  const current  = useSelector(selectCurrentBike);
+  const fileRef  = useRef();
 
-  const [form, setForm] = useState(INIT);
-  const [serviceItems, setServiceItems] = useState([]);
-  const [serviceInput, setServiceInput] = useState("");
-  const [serviceCostInput, setServiceCostInput] = useState("");
-  const [images, setImages] = useState([]);     // File objects (new uploads)
-  const [previews, setPreviews] = useState([]); // preview URLs
-  const [existingImgs, setExistingImgs] = useState([]); // already uploaded
-  const [errors, setErrors] = useState({});
-  const fileRef = useRef();
+  const [form,         setForm]        = useState(INIT);
+  const [svcItems,     setSvcItems]    = useState([]);
+  const [svcName,      setSvcName]     = useState("");
+  const [svcCost,      setSvcCost]     = useState("");
+  const [newImgs,      setNewImgs]     = useState([]);
+  const [previews,     setPreviews]    = useState([]);
+  const [existingImgs, setExistingImgs]= useState([]);
+  const [errors,       setErrors]      = useState({});
 
-  // Load bike for edit
   useEffect(() => {
     if (isEdit) dispatch(fetchBike(id));
     return () => dispatch(clearCurrentBike());
   }, [id, isEdit, dispatch]);
 
   useEffect(() => {
-    if (isEdit && currentBike) {
-      const flat = flatten(currentBike);
-      // Format dates
+    if (isEdit && current) {
+      const flat = flatten(current);
       ["purchase.buyDate","sale.sellDate","sale.cash.dueDate","rc.transferDate","sale.finance.startDate"]
-        .forEach((k) => {
-          if (flat[k]) flat[k] = new Date(flat[k]).toISOString().split("T")[0];
-        });
-      setForm((prev) => ({ ...prev, ...flat }));
-      setServiceItems(currentBike.service?.items || []);
-      setExistingImgs(currentBike.images || []);
+        .forEach((k) => { if (flat[k]) flat[k] = new Date(flat[k]).toISOString().split("T")[0]; });
+      setForm((p) => ({ ...p, ...flat }));
+      setSvcItems(current.service?.items || []);
+      setExistingImgs(current.images || []);
     }
-  }, [currentBike, isEdit]);
+  }, [current, isEdit]);
 
   const set = (k) => (e) => {
-    const val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-    setForm((prev) => ({ ...prev, [k]: val }));
-    if (errors[k]) setErrors((prev) => { const n = { ...prev }; delete n[k]; return n; });
+    const v = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    setForm((p) => ({ ...p, [k]: v }));
+    if (errors[k]) setErrors((p) => { const n = { ...p }; delete n[k]; return n; });
   };
 
-  const addServiceItem = () => {
-    if (!serviceInput.trim()) return;
-    setServiceItems((prev) => [
-      ...prev,
-      { name: serviceInput.trim(), cost: Number(serviceCostInput) || 0 },
-    ]);
-    // Auto-sum service total
-    const total = serviceItems.reduce((s, i) => s + i.cost, 0) + (Number(serviceCostInput) || 0);
-    setForm((prev) => ({ ...prev, "service.totalCost": total }));
-    setServiceInput("");
-    setServiceCostInput("");
+  const addSvc = () => {
+    if (!svcName.trim()) return;
+    const updated = [...svcItems, { name: svcName.trim(), cost: Number(svcCost) || 0 }];
+    setSvcItems(updated);
+    setForm((p) => ({ ...p, "service.totalCost": updated.reduce((s, i) => s + i.cost, 0) }));
+    setSvcName(""); setSvcCost("");
   };
 
-  const removeServiceItem = (idx) => {
-    const updated = serviceItems.filter((_, i) => i !== idx);
-    setServiceItems(updated);
-    const total = updated.reduce((s, i) => s + i.cost, 0);
-    setForm((prev) => ({ ...prev, "service.totalCost": total }));
+  const removeSvc = (i) => {
+    const updated = svcItems.filter((_, idx) => idx !== i);
+    setSvcItems(updated);
+    setForm((p) => ({ ...p, "service.totalCost": updated.reduce((s, x) => s + x.cost, 0) }));
   };
 
-  const handleImageChange = (e) => {
+  const handleImgs = (e) => {
     const files = Array.from(e.target.files);
-    if (images.length + files.length > 5) { toast.error("Max 5 images allowed"); return; }
-    setImages((prev) => [...prev, ...files]);
-    const newPreviews = files.map((f) => URL.createObjectURL(f));
-    setPreviews((prev) => [...prev, ...newPreviews]);
-  };
-
-  const removeNewImage = (idx) => {
-    URL.revokeObjectURL(previews[idx]);
-    setImages((prev) => prev.filter((_, i) => i !== idx));
-    setPreviews((prev) => prev.filter((_, i) => i !== idx));
+    if (newImgs.length + files.length > 5) { toast.error("Max 5 images"); return; }
+    setNewImgs((p) => [...p, ...files]);
+    setPreviews((p) => [...p, ...files.map((f) => URL.createObjectURL(f))]);
   };
 
   const validate = () => {
@@ -136,21 +149,12 @@ export default function BikeForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) { toast.error("Form mein errors hain"); return; }
-
     const nested = nest(form);
-    nested.service = { ...nested.service, items: serviceItems };
-
-    const formData = new FormData();
-    // Append nested JSON as string, server parses it
-    formData.append("data", JSON.stringify(nested));
-    images.forEach((img) => formData.append("images", img));
-
-    const action = isEdit
-      ? updateBike({ id, formData })
-      : createBike(formData);
-
-    const result = await dispatch(action);
-
+    nested.service = { ...nested.service, items: svcItems };
+    const fd = new FormData();
+    fd.append("data", JSON.stringify(nested));
+    newImgs.forEach((img) => fd.append("images", img));
+    const result = await dispatch(isEdit ? updateBike({ id, formData: fd }) : createBike(fd));
     if (!result.error) {
       toast.success(isEdit ? "Bike update ho gayi!" : "Bike add ho gayi!");
       dispatch(clearBikeMessages());
@@ -160,254 +164,213 @@ export default function BikeForm() {
     }
   };
 
-  if (isEdit && loading && !currentBike) return <Spinner center size="lg" />;
+  if (isEdit && loading && !current) return <Spinner center size="lg" />;
 
-  const isSold = form.status === "sold";
+  const isSold    = form.status === "sold";
   const isFinance = form["sale.paymentType"] === "finance";
-  const hasDue = Number(form["sale.cash.amountDue"]) > 0;
+  const hasDue    = Number(form["sale.cash.amountDue"]) > 0;
 
   return (
-    <form onSubmit={handleSubmit} className={styles.page} noValidate>
+    <form onSubmit={handleSubmit} noValidate className="space-y-4 pb-10">
 
-      {/* ── Bike Info ─────────────────────────────────────────── */}
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>🏍️ Bike Information</h3>
-        <div className={styles.grid2}>
+      {/* Bike Info */}
+      <div className={sec}>
+        <h3 className={secT}>🏍️ Bike Information</h3>
+        <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Model *" error={errors.model}>
-            <input className={inp(errors.model)} value={form.model} onChange={set("model")} placeholder="Splendor Plus, Pulsar 150..." />
+            <input className={inp(!!errors.model)} value={form.model} onChange={set("model")} placeholder="Splendor Plus, Pulsar 150..." />
           </Field>
           <Field label="Year">
-            <input className={styles.input} type="number" value={form.year} onChange={set("year")} placeholder="2019" min="1990" max={new Date().getFullYear()} />
+            <input className={inp()} type="number" value={form.year} onChange={set("year")} placeholder="2019" />
           </Field>
           <Field label="Color">
-            <input className={styles.input} value={form.color} onChange={set("color")} placeholder="Black, Red, Blue..." />
+            <input className={inp()} value={form.color} onChange={set("color")} placeholder="Black, Red..." />
           </Field>
           <Field label="Registration Number">
-            <input className={styles.input} value={form.registrationNumber} onChange={set("registrationNumber")} placeholder="RJ 14 AB 1234" />
+            <input className={inp()} value={form.registrationNumber} onChange={set("registrationNumber")} placeholder="RJ 14 AB 1234" />
           </Field>
         </div>
-        <div className={styles.grid3} style={{ marginTop: 12 }}>
-          {["in_stock","pending_arrival","sold"].map((s) => (
-            <label key={s} className={`${styles.radioCard} ${form.status === s ? styles.radioActive : ""}`}>
-              <input type="radio" name="status" value={s} checked={form.status === s} onChange={set("status")} style={{ display: "none" }} />
-              <span className={styles.radioIcon}>{s === "in_stock" ? "🏍️" : s === "pending_arrival" ? "⏳" : "✅"}</span>
-              <span>{s === "in_stock" ? "Stock Mein" : s === "pending_arrival" ? "Aani Baaki" : "Bech Di"}</span>
-            </label>
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          {[
+            { value: "in_stock",        label: "🏍️ Stock Mein" },
+            { value: "pending_arrival", label: "⏳ Aani Baaki" },
+            { value: "sold",            label: "✅ Bech Di" },
+          ].map((s) => (
+            <RadioCard key={s.value} {...s} current={form.status} onChange={(v) => setForm((p) => ({ ...p, status: v }))} />
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* ── Purchase Details ──────────────────────────────────── */}
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>🛒 Purchase Details</h3>
-        <div className={styles.grid2}>
+      {/* Purchase */}
+      <div className={sec}>
+        <h3 className={secT}>🛒 Purchase Details</h3>
+        <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Kahan se kharidi">
-            <input className={styles.input} value={form["purchase.buyFrom"]} onChange={set("purchase.buyFrom")} placeholder="Seller ka naam / jagah" />
+            <input className={inp()} value={form["purchase.buyFrom"]} onChange={set("purchase.buyFrom")} placeholder="Seller / jagah" />
           </Field>
           <Field label="Kharidne ki Tarikh">
-            <input className={styles.input} type="date" value={form["purchase.buyDate"]} onChange={set("purchase.buyDate")} />
+            <input className={inp()} type="date" value={form["purchase.buyDate"]} onChange={set("purchase.buyDate")} />
           </Field>
-          <Field label="Kharidne ki Kimat (₹) *" error={errors["purchase.buyPrice"]}>
-            <input className={inp(errors["purchase.buyPrice"])} type="number" value={form["purchase.buyPrice"]} onChange={set("purchase.buyPrice")} placeholder="0" min="0" />
+          <Field label="Buy Price (₹) *" error={errors["purchase.buyPrice"]}>
+            <input className={inp(!!errors["purchase.buyPrice"])} type="number" value={form["purchase.buyPrice"]} onChange={set("purchase.buyPrice")} placeholder="0" />
           </Field>
         </div>
-      </section>
+      </div>
 
-      {/* ── Service Details ───────────────────────────────────── */}
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>🔧 Service Details</h3>
-        <div className={styles.serviceAdd}>
-          <input
-            className={styles.input}
-            value={serviceInput}
-            onChange={(e) => setServiceInput(e.target.value)}
-            placeholder="Service item (e.g. Engine oil)"
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addServiceItem())}
-            style={{ flex: 2 }}
-          />
-          <input
-            className={styles.input}
-            type="number"
-            value={serviceCostInput}
-            onChange={(e) => setServiceCostInput(e.target.value)}
-            placeholder="Cost (₹)"
-            style={{ flex: 1 }}
-          />
-          <button type="button" className={styles.addItemBtn} onClick={addServiceItem}>+ Add</button>
+      {/* Service */}
+      <div className={sec}>
+        <h3 className={secT}>🔧 Service Details</h3>
+        <div className="flex gap-2 mb-3 flex-wrap">
+          <input className={`${inp()} flex-[2] min-w-[140px]`} value={svcName} onChange={(e) => setSvcName(e.target.value)}
+            placeholder="Service item (Engine oil...)" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSvc())} />
+          <input className={`${inp()} flex-1 min-w-[90px]`} type="number" value={svcCost} onChange={(e) => setSvcCost(e.target.value)} placeholder="Cost (₹)" />
+          <button type="button" onClick={addSvc}
+            className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-colors whitespace-nowrap">
+            + Add
+          </button>
         </div>
-
-        {serviceItems.length > 0 && (
-          <div className={styles.serviceList}>
-            {serviceItems.map((item, i) => (
-              <div key={i} className={styles.serviceItem}>
-                <span>🔧 {item.name}</span>
-                <span className={styles.serviceItemCost}>₹{Number(item.cost).toLocaleString("en-IN")}</span>
-                <button type="button" className={styles.removeBtn} onClick={() => removeServiceItem(i)}>✕</button>
+        {svcItems.length > 0 && (
+          <div className="border border-slate-100 rounded-xl overflow-hidden mb-4">
+            {svcItems.map((item, i) => (
+              <div key={i} className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100 last:border-0 text-sm">
+                <span className="text-slate-700">🔧 {item.name}</span>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-slate-500">₹{item.cost.toLocaleString("en-IN")}</span>
+                  <button type="button" onClick={() => removeSvc(i)} className="text-red-400 hover:text-red-600">✕</button>
+                </div>
               </div>
             ))}
-            <div className={styles.serviceTotal}>
-              Total: <strong>₹{serviceItems.reduce((s,i) => s + i.cost, 0).toLocaleString("en-IN")}</strong>
+            <div className="px-4 py-2 bg-orange-50 text-sm font-semibold text-orange-700">
+              Total: ₹{svcItems.reduce((s, i) => s + i.cost, 0).toLocaleString("en-IN")}
             </div>
           </div>
         )}
-
-        <div className={styles.grid2} style={{ marginTop: 12 }}>
-          <Field label="Total Service Kharcha (₹)">
-            <input className={styles.input} type="number" value={form["service.totalCost"]} onChange={set("service.totalCost")} placeholder="0" />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Total Service Cost (₹)">
+            <input className={inp()} type="number" value={form["service.totalCost"]} onChange={set("service.totalCost")} placeholder="0" />
           </Field>
-          <Field label="Service Notes">
-            <input className={styles.input} value={form["service.notes"]} onChange={set("service.notes")} placeholder="Additional notes..." />
+          <Field label="Notes">
+            <input className={inp()} value={form["service.notes"]} onChange={set("service.notes")} placeholder="Optional..." />
           </Field>
         </div>
-      </section>
+      </div>
 
-      {/* ── RC Transfer ───────────────────────────────────────── */}
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>📄 RC Transfer</h3>
-        <label className={styles.checkLabel}>
-          <input type="checkbox" checked={form["rc.transferred"]} onChange={set("rc.transferred")} className={styles.checkbox} />
+      {/* RC Transfer */}
+      <div className={sec}>
+        <h3 className={secT}>📄 RC Transfer</h3>
+        <label className="flex items-center gap-3 cursor-pointer text-sm font-medium text-slate-700">
+          <input type="checkbox" checked={form["rc.transferred"]} onChange={set("rc.transferred")} className="w-4 h-4 accent-orange-500 cursor-pointer" />
           RC Transfer ki gayi hai
         </label>
         {form["rc.transferred"] && (
-          <div className={styles.grid2} style={{ marginTop: 12 }}>
-            <Field label="RC Transfer Charge (₹)">
-              <input className={styles.input} type="number" value={form["rc.charge"]} onChange={set("rc.charge")} placeholder="0" />
+          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+            <Field label="RC Charge (₹)">
+              <input className={inp()} type="number" value={form["rc.charge"]} onChange={set("rc.charge")} placeholder="0" />
             </Field>
             <Field label="Transfer Date">
-              <input className={styles.input} type="date" value={form["rc.transferDate"]} onChange={set("rc.transferDate")} />
+              <input className={inp()} type="date" value={form["rc.transferDate"]} onChange={set("rc.transferDate")} />
             </Field>
           </div>
         )}
-      </section>
+      </div>
 
-      {/* ── Sale Details (only if sold) ───────────────────────── */}
+      {/* Sale Details */}
       {isSold && (
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>🤝 Sale Details</h3>
-          <div className={styles.grid2}>
-            <Field label="Sell Kimat (₹) *" error={errors["sale.sellPrice"]}>
-              <input className={inp(errors["sale.sellPrice"])} type="number" value={form["sale.sellPrice"]} onChange={set("sale.sellPrice")} placeholder="0" />
+        <div className={sec}>
+          <h3 className={secT}>🤝 Sale Details</h3>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Sell Price (₹) *" error={errors["sale.sellPrice"]}>
+              <input className={inp(!!errors["sale.sellPrice"])} type="number" value={form["sale.sellPrice"]} onChange={set("sale.sellPrice")} placeholder="0" />
             </Field>
-            <Field label="Sell ki Tarikh">
-              <input className={styles.input} type="date" value={form["sale.sellDate"]} onChange={set("sale.sellDate")} />
+            <Field label="Sell Date">
+              <input className={inp()} type="date" value={form["sale.sellDate"]} onChange={set("sale.sellDate")} />
             </Field>
           </div>
-
-          <div className={styles.grid2} style={{ marginTop: 12 }}>
-            {["cash","finance"].map((t) => (
-              <label key={t} className={`${styles.radioCard} ${form["sale.paymentType"] === t ? styles.radioActive : ""}`}>
-                <input type="radio" name="paymentType" value={t} checked={form["sale.paymentType"] === t} onChange={set("sale.paymentType")} style={{ display: "none" }} />
-                <span>{t === "cash" ? "💵 Cash" : "🏦 Finance"}</span>
-              </label>
-            ))}
+          <div className="grid grid-cols-2 gap-3 mt-4 mb-4">
+            <RadioCard value="cash"    label="💵 Cash"    current={form["sale.paymentType"]} onChange={(v) => setForm((p) => ({ ...p, "sale.paymentType": v }))} />
+            <RadioCard value="finance" label="🏦 Finance" current={form["sale.paymentType"]} onChange={(v) => setForm((p) => ({ ...p, "sale.paymentType": v }))} />
           </div>
 
-          {/* Cash Payment */}
           {!isFinance && (
-            <div className={styles.grid2} style={{ marginTop: 14 }}>
+            <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Cash Mila (₹)">
-                <input className={styles.input} type="number" value={form["sale.cash.amountPaid"]} onChange={set("sale.cash.amountPaid")} placeholder="0" />
+                <input className={inp()} type="number" value={form["sale.cash.amountPaid"]} onChange={set("sale.cash.amountPaid")} placeholder="0" />
               </Field>
               <Field label="Due Baaki (₹)">
-                <input className={styles.input} type="number" value={form["sale.cash.amountDue"]} onChange={set("sale.cash.amountDue")} placeholder="0" />
+                <input className={inp()} type="number" value={form["sale.cash.amountDue"]} onChange={set("sale.cash.amountDue")} placeholder="0" />
               </Field>
               {hasDue && (
                 <Field label="Due Date">
-                  <input className={styles.input} type="date" value={form["sale.cash.dueDate"]} onChange={set("sale.cash.dueDate")} />
+                  <input className={inp()} type="date" value={form["sale.cash.dueDate"]} onChange={set("sale.cash.dueDate")} />
                 </Field>
               )}
             </div>
           )}
-
-          {/* Finance Payment */}
           {isFinance && (
-            <div className={styles.grid2} style={{ marginTop: 14 }}>
-              <Field label="Finance Company">
-                <input className={styles.input} value={form["sale.finance.companyName"]} onChange={set("sale.finance.companyName")} placeholder="Bajaj, HDFC, etc." />
-              </Field>
-              <Field label="Finance Amount (₹)">
-                <input className={styles.input} type="number" value={form["sale.finance.financeAmount"]} onChange={set("sale.finance.financeAmount")} placeholder="0" />
-              </Field>
-              <Field label="EMI Amount (₹/month)">
-                <input className={styles.input} type="number" value={form["sale.finance.emiAmount"]} onChange={set("sale.finance.emiAmount")} placeholder="0" />
-              </Field>
-              <Field label="EMI Months">
-                <input className={styles.input} type="number" value={form["sale.finance.emiMonths"]} onChange={set("sale.finance.emiMonths")} placeholder="12" />
-              </Field>
-              <Field label="EMI Start Date">
-                <input className={styles.input} type="date" value={form["sale.finance.startDate"]} onChange={set("sale.finance.startDate")} />
-              </Field>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                { k: "sale.finance.companyName",  label: "Finance Company",    type: "text",   ph: "Bajaj, HDFC..." },
+                { k: "sale.finance.financeAmount", label: "Finance Amount (₹)", type: "number", ph: "0" },
+                { k: "sale.finance.emiAmount",     label: "EMI Amount (₹/mo)",  type: "number", ph: "0" },
+                { k: "sale.finance.emiMonths",     label: "EMI Months",         type: "number", ph: "12" },
+                { k: "sale.finance.startDate",     label: "EMI Start Date",     type: "date",   ph: "" },
+              ].map(({ k, label, type, ph }) => (
+                <Field key={k} label={label}>
+                  <input className={inp()} type={type} value={form[k]} onChange={set(k)} placeholder={ph} />
+                </Field>
+              ))}
             </div>
           )}
-        </section>
+        </div>
       )}
 
-      {/* ── Images ───────────────────────────────────────────── */}
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>📸 Bike Photos</h3>
-        <div className={styles.imageGrid}>
-          {/* Existing images */}
+      {/* Photos */}
+      <div className={sec}>
+        <h3 className={secT}>📸 Bike Photos</h3>
+        <div className="flex flex-wrap gap-3 mb-2">
           {existingImgs.map((img) => (
-            <div key={img.public_id} className={styles.imgThumb}>
-              <img src={img.url} alt="bike" />
-              <span className={styles.existingTag}>Saved</span>
+            <div key={img.public_id} className="relative w-24 h-20 rounded-xl overflow-hidden border-2 border-slate-200">
+              <img src={img.url} alt="saved" className="w-full h-full object-cover" />
+              <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[9px] font-bold text-center py-0.5">Saved</span>
             </div>
           ))}
-          {/* New previews */}
           {previews.map((src, i) => (
-            <div key={i} className={styles.imgThumb}>
-              <img src={src} alt="preview" />
-              <button type="button" className={styles.imgRemove} onClick={() => removeNewImage(i)}>✕</button>
+            <div key={i} className="relative w-24 h-20 rounded-xl overflow-hidden border-2 border-orange-200">
+              <img src={src} alt="preview" className="w-full h-full object-cover" />
+              <button type="button"
+                onClick={() => { URL.revokeObjectURL(src); setNewImgs((p) => p.filter((_,idx) => idx !== i)); setPreviews((p) => p.filter((_,idx) => idx !== i)); }}
+                className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full text-[10px] flex items-center justify-center hover:bg-red-600">✕</button>
             </div>
           ))}
-          {/* Upload button */}
-          {images.length + existingImgs.length < 5 && (
-            <button type="button" className={styles.uploadBtn} onClick={() => fileRef.current?.click()}>
-              <span>📷</span>
-              <span>Photo Add Karo</span>
-              <span className={styles.uploadSub}>Max 5 images, 5MB each</span>
+          {newImgs.length + existingImgs.length < 5 && (
+            <button type="button" onClick={() => fileRef.current?.click()}
+              className="w-24 h-20 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:border-orange-400 hover:bg-orange-50 transition-all flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-orange-500">
+              <span className="text-2xl">📷</span>
+              <span className="text-[10px] font-semibold">Add Photo</span>
             </button>
           )}
         </div>
-        <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handleImageChange} />
-      </section>
+        <p className="text-xs text-slate-400">Max 5 images · 5MB each · JPG/PNG/WebP</p>
+        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImgs} />
+      </div>
 
-      {/* ── Notes ────────────────────────────────────────────── */}
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>📝 Additional Notes</h3>
-        <textarea
-          className={styles.textarea}
-          value={form.notes}
-          onChange={set("notes")}
-          rows={3}
-          placeholder="Koi bhi extra information jo track karni ho..."
-        />
-      </section>
+      {/* Notes */}
+      <div className={sec}>
+        <h3 className={secT}>📝 Notes</h3>
+        <textarea className={`${inp()} resize-y`} value={form.notes} onChange={set("notes")} rows={3} placeholder="Koi bhi extra information..." />
+      </div>
 
-      {/* ── Submit ───────────────────────────────────────────── */}
-      <div className={styles.submitRow}>
-        <button type="button" className={styles.cancelBtn} onClick={() => navigate(-1)}>Cancel</button>
-        <button type="submit" className={styles.submitBtn} disabled={loading}>
+      {/* Submit */}
+      <div className="flex gap-3 justify-end pt-2">
+        <button type="button" onClick={() => navigate(-1)}
+          className="px-6 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-sm transition-colors">
+          Cancel
+        </button>
+        <button type="submit" disabled={loading}
+          className="px-8 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-[0.99] disabled:opacity-60 text-white font-bold text-sm transition-all flex items-center gap-2 min-w-[150px] justify-center">
           {loading ? <Spinner size="sm" /> : isEdit ? "💾 Update Bike" : "➕ Bike Add Karo"}
         </button>
       </div>
     </form>
   );
-}
-
-/* ─── Helpers ─────────────────────────────────────────────────── */
-function Field({ label, error, children }) {
-  return (
-    <div>
-      <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 5 }}>
-        {label}
-      </label>
-      {children}
-      {error && <span style={{ display: "block", fontSize: 12, color: "var(--danger)", marginTop: 3, fontWeight: 500 }}>{error}</span>}
-    </div>
-  );
-}
-
-function inp(err) {
-  return `${styles.input} ${err ? styles.inputError : ""}`;
 }

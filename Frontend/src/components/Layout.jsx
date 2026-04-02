@@ -2,25 +2,31 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
-import styles from "./Layout.module.css";
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className={styles.shell}>
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className={styles.main}>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main area */}
+      <div className="flex-1 flex flex-col md:ml-60">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className={styles.content}>
+        <main className="flex-1 p-4 md:p-6 max-w-screen-xl w-full">
           <div className="page-enter">
             <Outlet />
           </div>
         </main>
       </div>
-      {sidebarOpen && (
-        <div className={styles.overlay} onClick={() => setSidebarOpen(false)} />
-      )}
     </div>
   );
 }

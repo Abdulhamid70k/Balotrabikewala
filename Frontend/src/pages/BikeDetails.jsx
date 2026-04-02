@@ -1,87 +1,100 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchBike, deleteBike, selectCurrentBike, selectBikeLoading } from "../features/bikes/bikesslice";
+import { fetchBike, deleteBike, selectCurrentBike, selectBikeLoading } from "../features/bikes/bikeSlice";
 import { selectIsAdmin } from "../features/auth/authSlice";
 import { StatusBadge, Spinner } from "../components/UI";
 import toast from "react-hot-toast";
-import styles from "./BikeDetails.Module.css";
 
-const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
+const fmt     = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
+function Row({ label, value, bold }) {
+  return (
+    <div className="flex justify-between items-center py-2.5 border-b border-slate-50 last:border-0 gap-3">
+      <span className="text-sm text-slate-400 font-medium">{label}</span>
+      <span className={`text-sm text-right ${bold ? "font-bold text-orange-700 text-base" : "font-semibold text-slate-800"}`}>{value}</span>
+    </div>
+  );
+}
+
+function InfoCard({ title, children }) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-card p-5">
+      <h4 className="font-display font-bold text-sm text-orange-700 mb-3 pb-2.5 border-b-2 border-orange-100">{title}</h4>
+      {children}
+    </div>
+  );
+}
+
 export default function BikeDetail() {
-  const { id } = useParams();
+  const { id }   = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const bike = useSelector(selectCurrentBike);
-  const loading = useSelector(selectBikeLoading);
-  const isAdmin = useSelector(selectIsAdmin);
+  const bike     = useSelector(selectCurrentBike);
+  const loading  = useSelector(selectBikeLoading);
+  const isAdmin  = useSelector(selectIsAdmin);
 
   useEffect(() => { dispatch(fetchBike(id)); }, [id, dispatch]);
 
   const handleDelete = async () => {
     if (!confirm("Is bike ko permanently delete karna chahte ho?")) return;
-    const result = await dispatch(deleteBike(id));
-    if (!result.error) {
-      toast.success("Bike delete ho gayi");
-      navigate("/stock");
-    } else {
-      toast.error("Delete nahi ho saka");
-    }
+    const r = await dispatch(deleteBike(id));
+    if (!r.error) { toast.success("Bike delete ho gayi"); navigate("/stock"); }
+    else toast.error("Delete nahi ho saka");
   };
 
-  const handlePrint = () => window.print();
-
   if (loading) return <Spinner center size="lg" />;
-  if (!bike) return <div style={{ padding: 32, color: "var(--text-muted)" }}>Bike nahi mili.</div>;
+  if (!bike)   return <div className="p-8 text-slate-400">Bike nahi mili.</div>;
 
   const profit = bike.status === "sold"
-    ? (bike.sale?.sellPrice || 0) - (bike.purchase?.buyPrice || 0) -
-      (bike.service?.totalCost || 0) - (bike.rc?.charge || 0)
+    ? (bike.sale?.sellPrice || 0) - (bike.purchase?.buyPrice || 0) - (bike.service?.totalCost || 0) - (bike.rc?.charge || 0)
     : null;
-
   const hasDue = Number(bike.sale?.cash?.amountDue) > 0;
+  const isOverdue = hasDue && bike.sale?.cash?.dueDate && new Date(bike.sale.cash.dueDate) < new Date();
 
   return (
-    <div className={styles.page}>
-      {/* ── Header ────────────────────────────────────────────── */}
-      <div className={styles.topBar}>
-        <div className={styles.topLeft}>
-          <h2 className={styles.bikeName}>{bike.model}</h2>
-          <div className={styles.bikeMeta}>
-            {bike.year && <span>{bike.year}</span>}
-            {bike.color && <span>• {bike.color}</span>}
-            {bike.registrationNumber && <span>• {bike.registrationNumber}</span>}
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="font-display font-extrabold text-2xl text-slate-900">{bike.model}</h2>
+            <StatusBadge status={bike.status} />
           </div>
+          <p className="text-sm text-slate-400 mt-1">
+            {[bike.year, bike.color, bike.registrationNumber].filter(Boolean).join(" • ")}
+          </p>
         </div>
-        <div className={styles.topRight}>
-          <StatusBadge status={bike.status} />
-          <button className={styles.printBtn} onClick={handlePrint}>🖨️ Print</button>
-          <Link to={`/stock/${id}/edit`} className={styles.editBtn}>✏️ Edit</Link>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => window.print()} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold transition-colors">🖨️ Print</button>
+          <Link to={`/stock/${id}/edit`} className="px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-xl text-sm font-semibold transition-colors">✏️ Edit</Link>
           {isAdmin && (
-            <button className={styles.deleteBtn} onClick={handleDelete}>🗑️ Delete</button>
+            <button onClick={handleDelete} className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl text-sm font-semibold transition-colors">🗑️ Delete</button>
           )}
         </div>
       </div>
 
-      {/* ── Images ────────────────────────────────────────────── */}
+      {/* Images */}
       {bike.images?.length > 0 && (
-        <div className={styles.imgStrip}>
+        <div className="flex gap-3 overflow-x-auto pb-1">
           {bike.images.map((img) => (
-            <img key={img.public_id} src={img.url} alt={bike.model} className={styles.img} />
+            <img key={img.public_id} src={img.url} alt={bike.model}
+              className="w-48 h-36 object-cover rounded-2xl border border-slate-100 flex-shrink-0" />
           ))}
         </div>
       )}
 
-      {/* ── Profit Summary (if sold) ───────────────────────────── */}
+      {/* Profit banner */}
       {profit !== null && (
-        <div className={`${styles.profitBanner} ${profit >= 0 ? styles.profitGreen : styles.profitRed}`}>
+        <div className={`rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 ${profit >= 0 ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
           <div>
-            <div className={styles.profitLabel}>Net Profit / Loss</div>
-            <div className={styles.profitValue}>{fmt(profit)}</div>
+            <p className="text-xs font-semibold text-slate-400 mb-1">Net Profit / Loss</p>
+            <p className={`font-display font-extrabold text-3xl ${profit >= 0 ? "text-green-600" : "text-red-500"}`}>
+              {fmt(profit)}
+            </p>
           </div>
-          <div className={styles.profitBreakdown}>
+          <div className="flex flex-wrap gap-3 text-sm text-slate-500 font-medium">
             <span>Sell {fmt(bike.sale?.sellPrice)}</span>
             <span>− Buy {fmt(bike.purchase?.buyPrice)}</span>
             <span>− Service {fmt(bike.service?.totalCost)}</span>
@@ -90,131 +103,105 @@ export default function BikeDetail() {
         </div>
       )}
 
-      {/* ── Due Alert ─────────────────────────────────────────── */}
+      {/* Due alert */}
       {hasDue && (
-        <div className={styles.dueAlert}>
-          ⚠️ <strong>Due Baaki: {fmt(bike.sale?.cash?.amountDue)}</strong>
-          {bike.sale?.cash?.dueDate && ` — ${fmtDate(bike.sale.cash.dueDate)} tak dena hai`}
-          {new Date(bike.sale?.cash?.dueDate) < new Date() && (
-            <span className={styles.overdueTag}>OVERDUE</span>
+        <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-3 flex flex-wrap items-center gap-3">
+          <span className="text-red-700 text-sm font-semibold">
+            ⚠️ Due Baaki: {fmt(bike.sale?.cash?.amountDue)}
+            {bike.sale?.cash?.dueDate && ` — ${fmtDate(bike.sale.cash.dueDate)} tak`}
+          </span>
+          {isOverdue && (
+            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">OVERDUE</span>
           )}
         </div>
       )}
 
-      {/* ── Detail Grid ───────────────────────────────────────── */}
-      <div className={styles.detailGrid}>
-        {/* Purchase */}
-        <div className={styles.card}>
-          <h4 className={styles.cardTitle}>🛒 Purchase Details</h4>
-          <Row label="Seller" value={bike.purchase?.buyFrom || "—"} />
-          <Row label="Kharidne ki Tarikh" value={fmtDate(bike.purchase?.buyDate)} />
-          <Row label="Buy Price" value={fmt(bike.purchase?.buyPrice)} highlight />
-        </div>
+      {/* Info cards grid */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        <InfoCard title="🛒 Purchase Details">
+          <Row label="Seller"    value={bike.purchase?.buyFrom || "—"} />
+          <Row label="Buy Date"  value={fmtDate(bike.purchase?.buyDate)} />
+          <Row label="Buy Price" value={fmt(bike.purchase?.buyPrice)} bold />
+        </InfoCard>
 
-        {/* Service */}
-        <div className={styles.card}>
-          <h4 className={styles.cardTitle}>🔧 Service Details</h4>
-          {bike.service?.items?.length > 0 ? (
-            bike.service.items.map((item, i) => (
-              <Row key={i} label={item.name} value={`₹${Number(item.cost).toLocaleString("en-IN")}`} />
-            ))
-          ) : (
-            <p className={styles.emptyNote}>Koi service items nahi</p>
-          )}
-          <Row label="Total Service Kharcha" value={fmt(bike.service?.totalCost)} highlight />
+        <InfoCard title="🔧 Service Details">
+          {bike.service?.items?.length > 0
+            ? bike.service.items.map((item, i) => <Row key={i} label={item.name} value={`₹${Number(item.cost).toLocaleString("en-IN")}`} />)
+            : <p className="text-sm text-slate-400">Koi service items nahi</p>}
+          <Row label="Total Service" value={fmt(bike.service?.totalCost)} bold />
           {bike.service?.notes && <Row label="Notes" value={bike.service.notes} />}
-        </div>
+        </InfoCard>
 
-        {/* RC */}
-        <div className={styles.card}>
-          <h4 className={styles.cardTitle}>📄 RC Transfer</h4>
+        <InfoCard title="📄 RC Transfer">
           <Row label="RC Transfer" value={bike.rc?.transferred ? "Haan ✅" : "Nahi ❌"} />
           {bike.rc?.transferred && (
             <>
-              <Row label="Transfer Charge" value={fmt(bike.rc?.charge)} highlight />
+              <Row label="Charge"        value={fmt(bike.rc?.charge)} bold />
               <Row label="Transfer Date" value={fmtDate(bike.rc?.transferDate)} />
             </>
           )}
-        </div>
+        </InfoCard>
 
-        {/* Sale (if sold) */}
         {bike.status === "sold" && (
-          <div className={styles.card}>
-            <h4 className={styles.cardTitle}>🤝 Sale Details</h4>
-            <Row label="Sell Price" value={fmt(bike.sale?.sellPrice)} highlight />
-            <Row label="Sell Date" value={fmtDate(bike.sale?.sellDate)} />
-            <Row label="Payment Type" value={bike.sale?.paymentType === "finance" ? "Finance 🏦" : "Cash 💵"} />
-
+          <InfoCard title="🤝 Sale Details">
+            <Row label="Sell Price"    value={fmt(bike.sale?.sellPrice)} bold />
+            <Row label="Sell Date"     value={fmtDate(bike.sale?.sellDate)} />
+            <Row label="Payment Type"  value={bike.sale?.paymentType === "finance" ? "Finance 🏦" : "Cash 💵"} />
             {bike.sale?.paymentType === "cash" ? (
               <>
-                <Row label="Cash Mila" value={fmt(bike.sale?.cash?.amountPaid)} />
-                <Row label="Due Baaki" value={fmt(bike.sale?.cash?.amountDue)} />
+                <Row label="Cash Mila"  value={fmt(bike.sale?.cash?.amountPaid)} />
+                <Row label="Due Baaki"  value={fmt(bike.sale?.cash?.amountDue)} />
                 {hasDue && <Row label="Due Date" value={fmtDate(bike.sale?.cash?.dueDate)} />}
               </>
             ) : (
               <>
-                <Row label="Finance Company" value={bike.sale?.finance?.companyName || "—"} />
+                <Row label="Company"        value={bike.sale?.finance?.companyName || "—"} />
                 <Row label="Finance Amount" value={fmt(bike.sale?.finance?.financeAmount)} />
-                <Row label="EMI" value={`${fmt(bike.sale?.finance?.emiAmount)} × ${bike.sale?.finance?.emiMonths} months`} />
-                <Row label="EMI Start" value={fmtDate(bike.sale?.finance?.startDate)} />
+                <Row label="EMI"            value={`${fmt(bike.sale?.finance?.emiAmount)} × ${bike.sale?.finance?.emiMonths} months`} />
+                <Row label="EMI Start"      value={fmtDate(bike.sale?.finance?.startDate)} />
               </>
             )}
-          </div>
+          </InfoCard>
         )}
       </div>
 
-      {/* Notes */}
       {bike.notes && (
-        <div className={styles.notesCard}>
-          <h4 className={styles.cardTitle}>📝 Notes</h4>
-          <p className={styles.notesText}>{bike.notes}</p>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-card p-5">
+          <h4 className="font-display font-bold text-sm text-orange-700 mb-2">📝 Notes</h4>
+          <p className="text-sm text-slate-500 leading-relaxed">{bike.notes}</p>
         </div>
       )}
 
-      {/* ── PRINT VIEW (only visible when printing) ─────────── */}
-      <div className={styles.printOnly}>
-        <div className={styles.printHeader}>
-          <div className={styles.printBrand}>🏍️ BikeResell Pro — Bike Report</div>
-          <div>Print Date: {new Date().toLocaleDateString("en-IN")}</div>
+      {/* Print-only view */}
+      <div className="hidden print:block">
+        <div className="flex justify-between text-xs text-gray-500 mb-3 border-b-2 border-orange-500 pb-2">
+          <span className="text-orange-500 font-bold text-base">🏍️ BikeResell Pro — Bike Report</span>
+          <span>Print Date: {new Date().toLocaleDateString("en-IN")}</span>
         </div>
-        <h2>{bike.model} {bike.year ? `(${bike.year})` : ""}</h2>
-        <p>{bike.color} {bike.registrationNumber ? `• ${bike.registrationNumber}` : ""}</p>
-        <table className={styles.printTable}>
+        <h2 className="text-xl font-bold">{bike.model} {bike.year ? `(${bike.year})` : ""}</h2>
+        <p className="text-sm text-gray-500 mb-3">{bike.color} {bike.registrationNumber ? `• ${bike.registrationNumber}` : ""}</p>
+        <table className="w-full text-sm border-collapse">
           <tbody>
             {[
               ["Status", bike.status === "in_stock" ? "Stock Mein" : bike.status === "pending_arrival" ? "Aani Baaki" : "Bech Di"],
-              ["Seller", bike.purchase?.buyFrom || "—"],
+              ["Buy From", bike.purchase?.buyFrom || "—"],
               ["Buy Date", fmtDate(bike.purchase?.buyDate)],
               ["Buy Price", fmt(bike.purchase?.buyPrice)],
               ["Service Cost", fmt(bike.service?.totalCost)],
               ["RC Transfer", bike.rc?.transferred ? `Haan — ${fmt(bike.rc?.charge)}` : "Nahi"],
               ["Sell Price", fmt(bike.sale?.sellPrice)],
               ["Sell Date", fmtDate(bike.sale?.sellDate)],
-              ["Payment", bike.sale?.paymentType === "finance" ? `Finance — ${bike.sale?.finance?.companyName}` : "Cash"],
-              ...(bike.sale?.paymentType === "cash" ? [
-                ["Cash Mila", fmt(bike.sale?.cash?.amountPaid)],
-                ["Due Baaki", fmt(bike.sale?.cash?.amountDue)],
-              ] : [
-                ["Finance Amount", fmt(bike.sale?.finance?.financeAmount)],
-                ["EMI", `${fmt(bike.sale?.finance?.emiAmount)} × ${bike.sale?.finance?.emiMonths} months`],
-              ]),
               ...(profit !== null ? [["Net Profit/Loss", fmt(profit)]] : []),
             ].map(([k, v]) => (
-              <tr key={k}><td className={styles.printKey}>{k}</td><td>{v}</td></tr>
+              <tr key={k} className="border-b border-gray-200">
+                <td className="py-2 pr-4 font-semibold text-gray-500 w-[45%]">{k}</td>
+                <td className="py-2">{v}</td>
+              </tr>
             ))}
           </tbody>
         </table>
-        {bike.notes && <p style={{ marginTop: 12, fontSize: 12 }}><strong>Notes:</strong> {bike.notes}</p>}
+        {bike.notes && <p className="mt-3 text-xs"><strong>Notes:</strong> {bike.notes}</p>}
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value, highlight }) {
-  return (
-    <div className={styles.row}>
-      <span className={styles.rowLabel}>{label}</span>
-      <span className={`${styles.rowValue} ${highlight ? styles.rowHighlight : ""}`}>{value}</span>
     </div>
   );
 }

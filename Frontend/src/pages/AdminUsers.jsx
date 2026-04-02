@@ -1,12 +1,11 @@
-// ─── AdminUsers.jsx ──────────────────────────────────────────────────────────
+// AdminUsers.jsx
 import { useEffect, useState } from "react";
 import api from "../services/api";
 import { RoleBadge, Spinner, Card, SectionHeader } from "../components/UI";
 import toast from "react-hot-toast";
-import styles from "./AdminUsers.module.css";
 
-export function AdminUsers() {
-  const [users, setUsers]     = useState([]);
+export default function AdminUsers() {
+  const [users,   setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -31,36 +30,50 @@ export function AdminUsers() {
   if (loading) return <Spinner center size="lg" />;
 
   return (
-    <div>
-      <Card>
+    <Card padding={false}>
+      <div className="p-5 pb-0">
         <SectionHeader title={`👥 All Users (${users.length})`} />
-        <div className={styles.table}>
-          <div className={styles.head}>
-            <span>User</span><span>Role</span><span>Joined</span><span>Status</span><span>Action</span>
-          </div>
-          {users.map((u) => (
-            <div key={u._id} className={styles.row}>
-              <div>
-                <div className={styles.name}>{u.name}</div>
-                <div className={styles.email}>{u.email}</div>
-              </div>
-              <RoleBadge role={u.role} />
-              <span className={styles.date}>{new Date(u.createdAt).toLocaleDateString("en-IN")}</span>
-              <span className={`${styles.status} ${u.isActive ? styles.active : styles.inactive}`}>
-                {u.isActive ? "Active" : "Inactive"}
-              </span>
-              <button
-                className={`${styles.toggleBtn} ${u.isActive ? styles.deactivate : styles.activate}`}
-                onClick={() => toggle(u._id)}
-              >
-                {u.isActive ? "Deactivate" : "Activate"}
-              </button>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100">
+              {["User","Role","Joined","Status","Action"].map((h) => (
+                <th key={h} className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide px-5 py-3">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                <td className="px-5 py-3.5">
+                  <div className="font-semibold text-slate-800">{u.name}</div>
+                  <div className="text-xs text-slate-400">{u.email}</div>
+                </td>
+                <td className="px-5 py-3.5"><RoleBadge role={u.role} /></td>
+                <td className="px-5 py-3.5 text-xs text-slate-400">{new Date(u.createdAt).toLocaleDateString("en-IN")}</td>
+                <td className="px-5 py-3.5">
+                  <span className={`text-xs font-bold ${u.isActive ? "text-green-600" : "text-red-400"}`}>
+                    {u.isActive ? "● Active" : "● Inactive"}
+                  </span>
+                </td>
+                <td className="px-5 py-3.5">
+                  <button
+                    onClick={() => toggle(u._id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      u.isActive
+                        ? "bg-red-50 text-red-500 hover:bg-red-100"
+                        : "bg-green-50 text-green-600 hover:bg-green-100"
+                    }`}
+                  >
+                    {u.isActive ? "Deactivate" : "Activate"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
-
-export default AdminUsers;
