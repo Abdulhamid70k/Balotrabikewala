@@ -2,6 +2,18 @@ import Bike from "../models/bike.js";
 import cloudinary from "../configs/cloudnary.js";
 import { uploadToCloudinary } from "../middlewares/uploadMiddleware.js";
 
+const parseBikePayload = (body) => {
+  if (!body || typeof body !== "object") return {};
+  if (body.data != null && typeof body.data === "string") {
+    try {
+      return JSON.parse(body.data);
+    } catch {
+      return null;
+    }
+  }
+  return { ...body };
+};
+
 // Helper: build query filters
 const buildQuery = (queryParams, userId, userRole) => {
   const query = {};
@@ -65,19 +77,21 @@ export const getBike = async (req, res) => {
 // @route   POST /api/bikes
 // @access  Private
 export const createBike = async (req, res) => {
-  const bikeData = { ...req.body, createdBy: req.user._id };
+  const parsed = parseBikePayload(req.body);
+  if (parsed === null) {
+    return res.status(400).json({ success: false, message: "Invalid JSON in data field" });
+  }
+  const bikeData = { ...parsed, createdBy: req.user._id };
 
   // Handle uploaded images from Multer + Cloudinary
-if (req.files?.length) {
-  const uploadPromises = req.files.map((file) =>
-    uploadToCloudinary(file.buffer)
-  );
-  const results = await Promise.all(uploadPromises);
-  bikeData.images = results.map((result) => ({
-    public_id: result.public_id,
-    url: result.secure_url,
-  }));
-}
+  if (req.files?.length) {
+    const uploadPromises = req.files.map((file) => uploadToCloudinary(file.buffer));
+    const results = await Promise.all(uploadPromises);
+    bikeData.images = results.map((result) => ({
+      public_id: result.public_id,
+      url: result.secure_url,
+    }));
+  }
   const bike = await Bike.create(bikeData);
   res.status(201).json({ success: true, message: "Bike added successfully", data: bike });
 };
@@ -96,16 +110,23 @@ export const updateBike = async (req, res) => {
     return res.status(403).json({ success: false, message: "Not authorized" });
   }
 
-  // Handle new images
-  if (req.files?.length) {
-    const newImages = req.files.map((file) => ({
-      public_id: file.filename,
-      url: file.path,
-    }));
-    req.body.images = [...(bike.images || []), ...newImages];
+  const payload = parseBikePayload(req.body);
+  if (payload === null) {
+    return res.status(400).json({ success: false, message: "Invalid JSON in data field" });
   }
 
-  bike = await Bike.findByIdAndUpdate(req.params.id, req.body, {
+  // Handle new images (memory storage → Cloudinary, same as create)
+  if (req.files?.length) {
+    const uploadPromises = req.files.map((file) => uploadToCloudinary(file.buffer));
+    const results = await Promise.all(uploadPromises);
+    const newImages = results.map((result) => ({
+      public_id: result.public_id,
+      url: result.secure_url,
+    }));
+    payload.images = [...(bike.images || []), ...newImages];
+  }
+
+  bike = await Bike.findByIdAndUpdate(req.params.id, payload, {
     new: true,
     runValidators: true,
   });
