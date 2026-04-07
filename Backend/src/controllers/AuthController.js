@@ -1,21 +1,9 @@
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import mongoose from "mongoose";
 import {
   generateAccessToken,
   generateRefreshToken,
   setRefreshCookie,
 } from "../utils/generateToken.js";
-
-// Fixed valid ObjectId — "admin_001" ki jagah
-const ADMIN_ID = new mongoose.Types.ObjectId("000000000000000000000001");
-
-const ADMIN_USER = {
-  _id: ADMIN_ID,
-  name: process.env.ADMIN_NAME || "Admin",
-  username: process.env.ADMIN_USERNAME,
-  role: "admin",
-};
 
 // @desc    Login — single account only
 // @route   POST /api/auth/login
@@ -27,26 +15,29 @@ export const login = async (req, res) => {
     return res.status(400).json({ success: false, message: "Username aur password zaroori hai" });
   }
 
-  // Username check
-  if (username !== process.env.ADMIN_USERNAME) {
+  const validUsername = username === process.env.ADMIN_USERNAME;
+  const validPassword = password === process.env.ADMIN_PASSWORD;
+
+  if (!validUsername || !validPassword) {
     return res.status(401).json({ success: false, message: "Username ya password galat hai" });
   }
 
-  // ✅ Bcrypt se compare — plaintext comparison nahi
-  const isMatch = await bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH);
-  if (!isMatch) {
-    return res.status(401).json({ success: false, message: "Username ya password galat hai" });
-  }
+  const user = {
+    _id: "admin_001",
+    name: process.env.ADMIN_NAME || "Admin",
+    username: process.env.ADMIN_USERNAME,
+    role: "admin",
+  };
 
-  const accessToken  = generateAccessToken(ADMIN_USER._id, ADMIN_USER.role);
-  const refreshToken = generateRefreshToken(ADMIN_USER._id);
+  const accessToken  = generateAccessToken(user._id, user.role);
+  const refreshToken = generateRefreshToken(user._id);
 
   setRefreshCookie(res, refreshToken);
 
   res.json({
     success: true,
     message: "Login successful",
-    data: { ...ADMIN_USER, accessToken },
+    data: { ...user, accessToken },
   });
 };
 
@@ -63,8 +54,15 @@ export const refreshToken = async (req, res) => {
   try {
     jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
-    const newAccessToken  = generateAccessToken(ADMIN_USER._id, ADMIN_USER.role);
-    const newRefreshToken = generateRefreshToken(ADMIN_USER._id);
+    const user = {
+      _id: "admin_001",
+      name: process.env.ADMIN_NAME || "Admin",
+      username: process.env.ADMIN_USERNAME,
+      role: "admin",
+    };
+
+    const newAccessToken  = generateAccessToken(user._id, user.role);
+    const newRefreshToken = generateRefreshToken(user._id);
 
     setRefreshCookie(res, newRefreshToken);
 

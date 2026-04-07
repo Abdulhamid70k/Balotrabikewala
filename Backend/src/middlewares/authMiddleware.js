@@ -1,9 +1,6 @@
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 
-// A fixed, valid ObjectId for your single admin account
-const ADMIN_OBJECT_ID = new mongoose.Types.ObjectId("000000000000000000000001");
-
+// Protect — verify JWT, attach static user
 export const protect = (req, res, next) => {
   let token;
 
@@ -18,8 +15,9 @@ export const protect = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    // Single account — no DB lookup needed
     req.user = {
-      _id: ADMIN_OBJECT_ID,          // ✅ Valid ObjectId — no more CastError
+      _id: "admin_001",
       name: process.env.ADMIN_NAME || "Admin",
       username: process.env.ADMIN_USERNAME,
       role: decoded.role || "admin",
@@ -34,6 +32,7 @@ export const protect = (req, res, next) => {
   }
 };
 
+// Authorize by role
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
