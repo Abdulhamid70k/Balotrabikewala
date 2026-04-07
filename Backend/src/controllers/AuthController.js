@@ -1,96 +1,58 @@
-import User from "../models/user.js";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import {
   generateAccessToken,
   generateRefreshToken,
   setRefreshCookie,
 } from "../utils/generateToken.js";
 
-// @desc    Register new user
-// @route   POST /api/auth/register
-// @access  Public
-export const register = async (req, res) => {
-  const { name, email, password } = req.body;
+// Fixed valid ObjectId — "admin_001" ki jagah
+const ADMIN_ID = new mongoose.Types.ObjectId("000000000000000000000001");
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ success: false, message: "Please provide name, email and password" });
-  }
-
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    return res.status(400).json({ success: false, message: "Email already registered" });
-  }
-
-  const user = await User.create({ name, email, password });
-
-  const accessToken = generateAccessToken(user._id, user.role);
-  const refreshToken = generateRefreshToken(user._id);
-
-  // Save refresh token to DB
-  user.refreshToken = refreshToken;
-  await user.save({ validateBeforeSave: false });
-
-  setRefreshCookie(res, refreshToken);
-
-  res.status(201).json({
-    success: true,
-    message: "Registration successful",
-    data: {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      accessToken,
-    },
-  });
+const ADMIN_USER = {
+  _id: ADMIN_ID,
+  name: process.env.ADMIN_NAME || "Admin",
+  username: process.env.ADMIN_USERNAME,
+  role: "admin",
 };
 
-// @desc    Login user
+// @desc    Login — single account only
 // @route   POST /api/auth/login
 // @access  Public
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { username, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ success: false, message: "Please provide email and password" });
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: "Username aur password zaroori hai" });
   }
 
-  // Need password field (selected: false in schema)
-  const user = await User.findOne({ email }).select("+password");
-
-  if (!user || !(await user.matchPassword(password))) {
-    return res.status(401).json({ success: false, message: "Invalid email or password" });
+  // Username check
+  if (username !== process.env.ADMIN_USERNAME) {
+    return res.status(401).json({ success: false, message: "Username ya password galat hai" });
   }
 
-  if (!user.isActive) {
-    return res.status(403).json({ success: false, message: "Account has been deactivated" });
+  // ✅ Bcrypt se compare — plaintext comparison nahi
+  const isMatch = await bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH);
+  if (!isMatch) {
+    return res.status(401).json({ success: false, message: "Username ya password galat hai" });
   }
 
-  const accessToken = generateAccessToken(user._id, user.role);
-  const refreshToken = generateRefreshToken(user._id);
-
-  user.refreshToken = refreshToken;
-  user.lastLogin = Date.now();
-  await user.save({ validateBeforeSave: false });
+  const accessToken  = generateAccessToken(ADMIN_USER._id, ADMIN_USER.role);
+  const refreshToken = generateRefreshToken(ADMIN_USER._id);
 
   setRefreshCookie(res, refreshToken);
 
   res.json({
     success: true,
     message: "Login successful",
-    data: {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      accessToken,
-    },
+    data: { ...ADMIN_USER, accessToken },
   });
 };
 
-// @desc    Refresh access token using httpOnly cookie
+// @desc    Refresh access token
 // @route   POST /api/auth/refresh
-// @access  Public (needs refresh cookie)
+// @access  Public
 export const refreshToken = async (req, res) => {
   const token = req.cookies?.refreshToken;
 
@@ -99,18 +61,10 @@ export const refreshToken = async (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-    const user = await User.findById(decoded.id).select("+refreshToken");
+    jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
-    if (!user || user.refreshToken !== token) {
-      return res.status(403).json({ success: false, message: "Invalid refresh token" });
-    }
-
-    const newAccessToken = generateAccessToken(user._id, user.role);
-    const newRefreshToken = generateRefreshToken(user._id);
-
-    user.refreshToken = newRefreshToken;
-    await user.save({ validateBeforeSave: false });
+    const newAccessToken  = generateAccessToken(ADMIN_USER._id, ADMIN_USER.role);
+    const newRefreshToken = generateRefreshToken(ADMIN_USER._id);
 
     setRefreshCookie(res, newRefreshToken);
 
@@ -120,28 +74,21 @@ export const refreshToken = async (req, res) => {
   }
 };
 
-// @desc    Logout user
+// @desc    Logout
 // @route   POST /api/auth/logout
 // @access  Private
-export const logout = async (req, res) => {
-  const user = await User.findById(req.user._id);
-  if (user) {
-    user.refreshToken = undefined;
-    await user.save({ validateBeforeSave: false });
-  }
-
+export const logout = (req, res) => {
   res.clearCookie("refreshToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
   });
-
   res.json({ success: true, message: "Logged out successfully" });
 };
 
-// @desc    Get current logged-in user
+// @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
-export const getMe = async (req, res) => {
+export const getMe = (req, res) => {
   res.json({ success: true, data: req.user });
 };

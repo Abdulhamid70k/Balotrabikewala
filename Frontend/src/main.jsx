@@ -10,7 +10,7 @@ import "./index.css";
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Provider store={store}>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <App />
         <Toaster
           position="top-right"
@@ -24,7 +24,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               fontWeight: "500",
             },
             success: { iconTheme: { primary: "#22c55e", secondary: "#fff" } },
-            error: { iconTheme: { primary: "#ef4444", secondary: "#fff" } },
+            error:   { iconTheme: { primary: "#ef4444", secondary: "#fff" } },
           }}
         />
       </BrowserRouter>

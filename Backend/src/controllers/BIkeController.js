@@ -1,230 +1,134 @@
-import Bike from "../models/bike.js";
-import cloudinary from "../configs/cloudnary.js";
-import { uploadToCloudinary } from "../middlewares/uploadMiddleware.js";
+import Bike from "../models/Bike.js";
 
-const parseBikePayload = (body) => {
-  if (!body || typeof body !== "object") return {};
-  if (body.data != null && typeof body.data === "string") {
-    try {
-      return JSON.parse(body.data);
-    } catch {
-      return null;
-    }
-  }
-  return { ...body };
-};
+const userFilter = (req) =>
+  req.user.role === "admin" ? {} : { createdBy: req.user._id };
 
-// Helper: build query filters
-const buildQuery = (queryParams, userId, userRole) => {
-  const query = {};
-
-  // Non-admins see only their own bikes
-  if (userRole !== "admin") query.createdBy = userId;
-
-  if (queryParams.status) query.status = queryParams.status;
-  if (queryParams.search) query.$text = { $search: queryParams.search };
-
-  return query;
-};
-
-// @desc    Get all bikes (with pagination + filters)
-// @route   GET /api/bikes
-// @access  Private
+// GET all bikes
 export const getBikes = async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
+  const page   = parseInt(req.query.page)  || 1;
+  const limit  = parseInt(req.query.limit) || 20;
+  const skip   = (page - 1) * limit;
   const sortBy = req.query.sortBy || "-createdAt";
 
-  const query = buildQuery(req.query, req.user._id, req.user.role);
+  const query = { ...userFilter(req) };
+  if (req.query.status) query.status = req.query.status;
+  if (req.query.search) query.$text = { $search: req.query.search };
 
   const [bikes, total] = await Promise.all([
-    Bike.find(query).sort(sortBy).skip(skip).limit(limit).populate("createdBy", "name email"),
+    Bike.find(query).sort(sortBy).skip(skip).limit(limit).populate("createdBy", "name"),
     Bike.countDocuments(query),
   ]);
 
-  res.json({
-    success: true,
-    data: bikes,
-    pagination: {
-      page,
-      limit,
-      total,
-      pages: Math.ceil(total / limit),
-    },
-  });
+  res.json({ success: true, data: bikes, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
 };
 
-// @desc    Get single bike
-// @route   GET /api/bikes/:id
-// @access  Private
+// GET single bike
 export const getBike = async (req, res) => {
   const bike = await Bike.findById(req.params.id).populate("createdBy", "name email");
-
-  if (!bike) {
-    return res.status(404).json({ success: false, message: "Bike not found" });
-  }
-
-  // Non-admin can only see own bikes
-  if (req.user.role !== "admin" && bike.createdBy._id.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ success: false, message: "Not authorized" });
-  }
-
+  if (!bike) return res.status(404).json({ success: false, message: "Bike nahi mili" });
+  if (req.user.role !== "admin" && bike.createdBy._id.toString() !== req.user._id.toString())
+    return res.status(403).json({ success: false, message: "Access denied" });
   res.json({ success: true, data: bike });
 };
 
-// @desc    Create bike
-// @route   POST /api/bikes
-// @access  Private
+// POST create bike (no image)
 export const createBike = async (req, res) => {
-  const parsed = parseBikePayload(req.body);
-  if (parsed === null) {
-    return res.status(400).json({ success: false, message: "Invalid JSON in data field" });
-  }
-  const bikeData = { ...parsed, createdBy: req.user._id };
-
-  // Handle uploaded images from Multer + Cloudinary
-  if (req.files?.length) {
-    const uploadPromises = req.files.map((file) => uploadToCloudinary(file.buffer));
-    const results = await Promise.all(uploadPromises);
-    bikeData.images = results.map((result) => ({
-      public_id: result.public_id,
-      url: result.secure_url,
-    }));
-  }
-  const bike = await Bike.create(bikeData);
-  res.status(201).json({ success: true, message: "Bike added successfully", data: bike });
+  const bike = await Bike.create({ ...req.body, createdBy: req.user._id });
+  res.status(201).json({ success: true, message: "Bike add ho gayi", data: bike });
 };
 
-// @desc    Update bike
-// @route   PUT /api/bikes/:id
-// @access  Private
+// PUT update bike
 export const updateBike = async (req, res) => {
   let bike = await Bike.findById(req.params.id);
+  if (!bike) return res.status(404).json({ success: false, message: "Bike nahi mili" });
+  if (req.user.role !== "admin" && bike.createdBy.toString() !== req.user._id.toString())
+    return res.status(403).json({ success: false, message: "Access denied" });
 
-  if (!bike) {
-    return res.status(404).json({ success: false, message: "Bike not found" });
-  }
-
-  if (req.user.role !== "admin" && bike.createdBy.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ success: false, message: "Not authorized" });
-  }
-
-  const payload = parseBikePayload(req.body);
-  if (payload === null) {
-    return res.status(400).json({ success: false, message: "Invalid JSON in data field" });
-  }
-
-  // Handle new images (memory storage → Cloudinary, same as create)
-  if (req.files?.length) {
-    const uploadPromises = req.files.map((file) => uploadToCloudinary(file.buffer));
-    const results = await Promise.all(uploadPromises);
-    const newImages = results.map((result) => ({
-      public_id: result.public_id,
-      url: result.secure_url,
-    }));
-    payload.images = [...(bike.images || []), ...newImages];
-  }
-
-  bike = await Bike.findByIdAndUpdate(req.params.id, payload, {
-    new: true,
-    runValidators: true,
-  });
-
-  res.json({ success: true, message: "Bike updated successfully", data: bike });
+  bike = await Bike.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  res.json({ success: true, message: "Bike update ho gayi", data: bike });
 };
 
-// @desc    Delete bike
-// @route   DELETE /api/bikes/:id
-// @access  Private (Admin only)
+// DELETE bike
 export const deleteBike = async (req, res) => {
   const bike = await Bike.findById(req.params.id);
-
-  if (!bike) {
-    return res.status(404).json({ success: false, message: "Bike not found" });
-  }
-
-  // Delete images from Cloudinary
-  const deletePromises = bike.images.map((img) =>
-    cloudinary.uploader.destroy(img.public_id)
-  );
-  await Promise.allSettled(deletePromises);
-
+  if (!bike) return res.status(404).json({ success: false, message: "Bike nahi mili" });
   await bike.deleteOne();
-  res.json({ success: true, message: "Bike deleted successfully" });
+  res.json({ success: true, message: "Bike delete ho gayi" });
 };
 
-// @desc    Delete single image from bike
-// @route   DELETE /api/bikes/:id/images/:imageId
-// @access  Private
-export const deleteImage = async (req, res) => {
-  const bike = await Bike.findById(req.params.id);
-  if (!bike) return res.status(404).json({ success: false, message: "Bike not found" });
-
-  const image = bike.images.find((img) => img.public_id === req.params.imageId);
-  if (!image) return res.status(404).json({ success: false, message: "Image not found" });
-
-  await cloudinary.uploader.destroy(req.params.imageId);
-  bike.images = bike.images.filter((img) => img.public_id !== req.params.imageId);
-  await bike.save();
-
-  res.json({ success: true, message: "Image deleted", data: bike });
-};
-
-// @desc    Dashboard stats + reports
-// @route   GET /api/bikes/stats
-// @access  Private
+// GET dashboard stats
 export const getStats = async (req, res) => {
+  const match = userFilter(req);
   const userId = req.user.role === "admin" ? null : req.user._id;
-  const matchStage = userId ? { createdBy: userId } : {};
 
   const stats = await Bike.aggregate([
-    { $match: matchStage },
-    {
-      $group: {
-        _id: "$status",
-        count: { $sum: 1 },
-        totalBuyPrice: { $sum: "$purchase.buyPrice" },
-        totalSellPrice: { $sum: "$sale.sellPrice" },
-        totalServiceCost: { $sum: "$service.totalCost" },
-        totalRcCharge: { $sum: "$rc.charge" },
-        totalDue: { $sum: "$sale.cash.amountDue" },
-      },
-    },
+    { $match: match },
+    { $group: {
+      _id: "$status",
+      count:            { $sum: 1 },
+      totalBuyPrice:    { $sum: "$purchase.buyPrice" },
+      totalSellPrice:   { $sum: "$sale.sellPrice" },
+      totalServiceCost: { $sum: "$service.totalCost" },
+      totalRcCharge:    { $sum: "$rc.charge" },
+      totalDue:         { $sum: "$sale.cash.amountDue" },
+    }},
   ]);
 
-  // Monthly sales for last 6 months
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const sixAgo = new Date();
+  sixAgo.setMonth(sixAgo.getMonth() - 6);
 
   const monthly = await Bike.aggregate([
-    {
-      $match: {
-        ...matchStage,
-        status: "sold",
-        "sale.sellDate": { $gte: sixMonthsAgo },
-      },
-    },
-    {
-      $group: {
-        _id: {
-          year: { $year: "$sale.sellDate" },
-          month: { $month: "$sale.sellDate" },
-        },
-        count: { $sum: 1 },
-        revenue: { $sum: "$sale.sellPrice" },
-        profit: {
-          $sum: {
-            $subtract: [
-              "$sale.sellPrice",
-              { $add: ["$purchase.buyPrice", "$service.totalCost", "$rc.charge"] },
-            ],
-          },
-        },
-      },
-    },
+    { $match: { ...match, status: "sold", "sale.sellDate": { $gte: sixAgo } } },
+    { $group: {
+      _id:     { year: { $year: "$sale.sellDate" }, month: { $month: "$sale.sellDate" } },
+      count:   { $sum: 1 },
+      revenue: { $sum: "$sale.sellPrice" },
+      profit:  { $sum: { $subtract: ["$sale.sellPrice", { $add: ["$purchase.buyPrice", "$service.totalCost", "$rc.charge"] }] } },
+    }},
     { $sort: { "_id.year": 1, "_id.month": 1 } },
   ]);
 
   res.json({ success: true, data: { statusBreakdown: stats, monthly } });
+};
+
+// GET report data — used by all report pages
+export const getReport = async (req, res) => {
+  const { type, from, to, year, month } = req.query;
+  const base = { ...userFilter(req) };
+
+  let query = { ...base };
+  let dateField = "createdAt";
+
+  if (type === "purchase")        { dateField = "purchase.buyDate"; }
+  else if (type === "sale")       { query.status = "sold"; dateField = "sale.sellDate"; }
+  else if (type === "stock")      { query.status = "in_stock"; }
+  else if (type === "pending")    { query.status = "pending_arrival"; }
+  else if (type === "due")        { query.status = "sold"; query["sale.cash.amountDue"] = { $gt: 0 }; }
+  else if (type === "monthly")    {
+    query.status = "sold";
+    if (year && month) {
+      const start = new Date(year, month - 1, 1);
+      const end   = new Date(year, month, 0, 23, 59, 59);
+      query["sale.sellDate"] = { $gte: start, $lte: end };
+    }
+    dateField = "sale.sellDate";
+  }
+  else if (type === "yearly") {
+    query.status = "sold";
+    if (year) {
+      const start = new Date(year, 0, 1);
+      const end   = new Date(year, 11, 31, 23, 59, 59);
+      query["sale.sellDate"] = { $gte: start, $lte: end };
+    }
+    dateField = "sale.sellDate";
+  }
+
+  if (from || to) {
+    query[dateField] = {};
+    if (from) query[dateField].$gte = new Date(from);
+    if (to)   query[dateField].$lte = new Date(to + "T23:59:59");
+  }
+
+  const bikes = await Bike.find(query).sort({ [dateField]: -1 }).limit(500);
+  res.json({ success: true, data: bikes, count: bikes.length });
 };

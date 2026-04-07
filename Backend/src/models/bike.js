@@ -5,78 +5,85 @@ const serviceItemSchema = new mongoose.Schema({
   cost: { type: Number, default: 0 },
 });
 
-const imageSchema = new mongoose.Schema({
-  public_id: String,
-  url: String,
-});
-
 const bikeSchema = new mongoose.Schema(
   {
-    // ─── Basic Info ─────────────────────────────────────────────────────────
-    model: {
-      type: String,
-      required: [true, "Bike model is required"],
-      trim: true,
+    // ─── Item reference (from Items Master) ──────────────────────
+    item: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Item",
     },
-    year: { type: Number },
-    color: { type: String, trim: true },
-    registrationNumber: { type: String, trim: true, uppercase: true },
-    images: [imageSchema],
+    // Denormalized for display even if item deleted
+    bikeName: { type: String, required: [true, "Bike name zaroori hai"], trim: true },
+    bikeMake:  { type: String, trim: true, default: "" },
+    bikeBrand: { type: String, trim: true, default: "" },
 
-    // ─── Status ─────────────────────────────────────────────────────────────
+    year:               { type: Number },
+    color:              { type: String, trim: true },
+    registrationNumber: { type: String, trim: true, uppercase: true },
+
+    // ─── Status ──────────────────────────────────────────────────
     status: {
       type: String,
       enum: ["pending_arrival", "in_stock", "sold"],
       default: "in_stock",
     },
 
-    // ─── Purchase Details ────────────────────────────────────────────────────
+    // ─── Purchase Voucher ─────────────────────────────────────────
     purchase: {
-      buyFrom: { type: String, trim: true },
-      buyDate: Date,
-      buyPrice: { type: Number, default: 0, min: 0 },
+      voucherNumber: { type: String, trim: true },
+      buyFrom:       { type: String, trim: true },
+      buyDate:       Date,
+      buyPrice:      { type: Number, default: 0, min: 0 },
     },
 
-    // ─── Service Details ─────────────────────────────────────────────────────
+    // ─── Service ─────────────────────────────────────────────────
     service: {
-      items: [serviceItemSchema],
+      items:     [serviceItemSchema],
       totalCost: { type: Number, default: 0, min: 0 },
-      notes: String,
+      notes:     String,
     },
 
-    // ─── RC Transfer ─────────────────────────────────────────────────────────
+    // ─── RC Transfer ─────────────────────────────────────────────
     rc: {
-      transferred: { type: Boolean, default: false },
-      charge: { type: Number, default: 0 },
+      transferred:  { type: Boolean, default: false },
+      charge:       { type: Number, default: 0 },
       transferDate: Date,
     },
 
-    // ─── Sale Details ─────────────────────────────────────────────────────────
+    // ─── Sale Voucher ─────────────────────────────────────────────
     sale: {
-      sellPrice: { type: Number, default: 0, min: 0 },
-      sellDate: Date,
-      paymentType: { type: String, enum: ["cash", "finance"], default: "cash" },
+      voucherNumber: { type: String, trim: true },
+      sellPrice:     { type: Number, default: 0, min: 0 },
+      sellDate:      Date,
+      paymentType:   { type: String, enum: ["cash", "finance"], default: "cash" },
 
-      // Cash payment
-      cash: {
-        amountPaid: { type: Number, default: 0 },
-        amountDue: { type: Number, default: 0 },
-        dueDate: Date,
+      // Customer details
+      customer: {
+        name:    { type: String, trim: true },
+        mobile:  { type: String, trim: true },
+        address: { type: String, trim: true },
       },
 
-      // Finance details
+      // Cash
+      cash: {
+        amountPaid: { type: Number, default: 0 },
+        amountDue:  { type: Number, default: 0 },
+        dueDate:    Date,
+        dueNote:    { type: String, trim: true }, // when customer will pay
+      },
+
+      // Finance
       finance: {
-        companyName: String,
+        companyName:   { type: String, trim: true },
         financeAmount: { type: Number, default: 0 },
-        emiAmount: { type: Number, default: 0 },
-        emiMonths: { type: Number, default: 0 },
-        startDate: Date,
+        emiAmount:     { type: Number, default: 0 },
+        emiMonths:     { type: Number, default: 0 },
+        startDate:     Date,
       },
     },
 
     notes: { type: String, maxlength: 500 },
 
-    // ─── Relations ───────────────────────────────────────────────────────────
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -85,27 +92,26 @@ const bikeSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
+    toJSON:   { virtuals: true },
     toObject: { virtuals: true },
   }
 );
 
-// ─── Virtual: Net profit ─────────────────────────────────────────────────────
+// ─── Virtual: Net profit ──────────────────────────────────────────
 bikeSchema.virtual("profit").get(function () {
   if (this.status !== "sold") return null;
   return (
-    (this.sale?.sellPrice || 0) -
-    (this.purchase?.buyPrice || 0) -
-    (this.service?.totalCost || 0) -
-    (this.rc?.charge || 0)
+    (this.sale?.sellPrice     || 0) -
+    (this.purchase?.buyPrice  || 0) -
+    (this.service?.totalCost  || 0) -
+    (this.rc?.charge          || 0)
   );
 });
 
-// ─── Indexes for fast queries ─────────────────────────────────────────────────
 bikeSchema.index({ status: 1 });
 bikeSchema.index({ createdBy: 1 });
 bikeSchema.index({ "sale.sellDate": -1 });
-bikeSchema.index({ model: "text" }); // Full-text search
+bikeSchema.index({ bikeName: "text", bikeMake: "text" });
 
 const Bike = mongoose.model("Bike", bikeSchema);
 export default Bike;
