@@ -78,8 +78,8 @@ export default function Login() {
             <div className="font-display font-bold text-slate-900 text-xl">BikeResell Pro</div>
           </div>
 
-          <h2 className="font-display font-bold text-slate-900 text-2xl mb-1">Wapas aao!</h2>
-          <p className="text-slate-500 text-sm mb-7">Apne account mein login karo</p>
+          <h2 className="font-display font-bold text-slate-900 text-2xl mb-1">Welcome!</h2>
+          <p className="text-slate-500 text-sm mb-7">Please Login To Your Account</p>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div>
@@ -116,7 +116,7 @@ export default function Login() {
 
             <button type="submit" disabled={loading}
               className="w-full py-3 bg-orange-500 hover:bg-orange-600 active:scale-[0.99] disabled:opacity-60 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 mt-2">
-              {loading ? <Spinner size="sm" /> : "Login Karo"}
+              {loading ? <Spinner size="sm" /> : "Login "}
             </button>
           </form>
         </div>
