@@ -1,4 +1,4 @@
-import Bike from "../models/Bike.js";
+import Bike from "../models/bike.js";
 
 const userFilter = (req) =>
   req.user.role === "admin" ? {} : { createdBy: req.user._id };

@@ -1,4 +1,4 @@
-import Item from "../models/Item.js";
+import Item from "../models/item.js";
 
 // GET all items (with search)
 export const getItems = async (req, res) => {
