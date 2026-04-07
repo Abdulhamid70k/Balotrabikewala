@@ -2,9 +2,7 @@ import axios from "axios";
 import { store } from "../app/store";
 import { logout, setCredentials } from "../features/auth/authSlice";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "https://balotrabikewala.onrender.com"
-Menu
-";
+const BASE_URL = import.meta.env.VITE_API_URL || "https://balotrabikewala.onrender.com";
 
 // ─── Public instance (no auth) ───────────────────────────────────────────────
 export const publicAPI = axios.create({ baseURL: BASE_URL });
