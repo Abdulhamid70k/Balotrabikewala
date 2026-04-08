@@ -37,6 +37,86 @@ export const createBike = async (req, res) => {
   }
 };
 
+export const getBike = async (req, res) => {
+  try {
+    const bike = await Bike.findById(req.params.id);
+
+    if (!bike) {
+      return res.status(404).json({
+        success: false,
+        message: "Bike nahi mili",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: bike,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+
+export const updateBike = async (req, res) => {
+  try {
+    const bike = await Bike.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!bike) {
+      return res.status(404).json({
+        success: false,
+        message: "Bike nahi mili",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Bike update ho gayi",
+      data: bike,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+export const getStats = async (req, res) => {
+  try {
+    const stats = await Bike.aggregate([
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+          totalBuyPrice: { $sum: "$purchase.buyPrice" },
+          totalSellPrice: { $sum: "$sale.sellPrice" },
+          totalServiceCost: { $sum: "$service.totalCost" },
+          totalRcCharge: { $sum: "$rc.charge" },
+          totalDue: { $sum: "$sale.cash.amountDue" },
+        },
+      },
+    ]);
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
 export const deleteBike = async (req, res) => {
   try {
     const bike = await Bike.findById(req.params.id);
