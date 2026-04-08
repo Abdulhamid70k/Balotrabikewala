@@ -1,4 +1,8 @@
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+
+// Fixed valid ObjectId — "admin_001" ki jagah
+const ADMIN_ID = new mongoose.Types.ObjectId("000000000000000000000001");
 
 // Protect — verify JWT, attach static user
 export const protect = (req, res, next) => {
@@ -15,9 +19,8 @@ export const protect = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Single account — no DB lookup needed
     req.user = {
-      _id: "admin_001",
+      _id: ADMIN_ID,                              // ✅ Valid ObjectId
       name: process.env.ADMIN_NAME || "Admin",
       username: process.env.ADMIN_USERNAME,
       role: decoded.role || "admin",

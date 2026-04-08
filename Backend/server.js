@@ -32,6 +32,12 @@ connectDB();
 
 const app = express();
 
+app.set("trust proxy", 1); // ← yeh add karo Render ke liye
+
+app.use(helmet());
+
+
+
 app.use(
   cors({
     origin: (origin, callback) => {
