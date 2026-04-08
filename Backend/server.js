@@ -35,7 +35,7 @@ const app = express();
 app.use(helmet());
 const allowedOrigins = [
   "http://localhost:5173",
-  "http://localhost:3000",
+  "https://balotrabikewala.vercel.app" ,
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
