@@ -1,12 +1,12 @@
 import express from "express";
-import { getBikes, getBike, createBike, updateBike, deleteBike, getStats,  } from "../controllers/BIkeController.js";
+import { getBikes, getBike, createBike, updateBike, deleteBike, getStats, getReport,  } from "../controllers/BIkeController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 router.use(protect);
 
 router.get("/stats",  getStats);
-//router.get("/report", getReport);
+router.get("/report", getReport);
 
 router.route("/").get(getBikes).post(createBike);
 router.route("/:id")
