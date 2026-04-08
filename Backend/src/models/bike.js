@@ -105,7 +105,7 @@ bikeSchema.virtual("profit").get(function () {
 });
 
 bikeSchema.index({ status: 1 });
-bikeSchema.index({ createdBy: 1 });
+
 bikeSchema.index({ "sale.sellDate": -1 });
 bikeSchema.index({ bikeName: "text", bikeMake: "text" });
 
