@@ -6,7 +6,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get("/stats",  getStats);
-router.get("/report", getReport);
+//router.get("/report", getReport);
 
 router.route("/").get(getBikes).post(createBike);
 router.route("/:id")
