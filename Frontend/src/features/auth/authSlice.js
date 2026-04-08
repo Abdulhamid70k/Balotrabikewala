@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { publicAPI } from "../../services/api.js";
+import api, { publicAPI } from "../../services/api.js";
 
 export const loginUser = createAsyncThunk(
   "auth/login",
@@ -17,8 +17,7 @@ export const logoutUser = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      const { default: api } = await import("../../services/api");
-      await api.post("/api/auth/logout");
+      await api.post("/auth/logout");
     } catch (err) {
       return rejectWithValue(err.response?.data?.message);
     }
@@ -34,27 +33,22 @@ const authSlice = createSlice({
     error: null,
   },
   reducers: {
-    // ✅ IMPORTANT (fix)
     setCredentials: (state, action) => {
       state.token = action.payload.token;
       localStorage.setItem("token", action.payload.token);
     },
-
     logout: (state) => {
       state.user = null;
       state.token = null;
       localStorage.removeItem("user");
       localStorage.removeItem("token");
     },
-
     clearError: (state) => {
       state.error = null;
     },
   },
-
   extraReducers: (builder) => {
     builder
-      // LOGIN
       .addCase(loginUser.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -71,8 +65,6 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-
-      // LOGOUT
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
         state.token = null;
@@ -86,7 +78,7 @@ export const { setCredentials, logout, clearError } = authSlice.actions;
 export default authSlice.reducer;
 
 export const selectCurrentUser = (state) => state.auth.user;
-export const selectToken       = (state) => state.auth.token;
+export const selectToken = (state) => state.auth.token;
 export const selectAuthLoading = (state) => state.auth.loading;
-export const selectAuthError   = (state) => state.auth.error;
-export const selectIsAdmin     = (state) => state.auth.user?.role === "admin";
+export const selectAuthError = (state) => state.auth.error;
+export const selectIsAdmin = (state) => state.auth.user?.role === "admin";
