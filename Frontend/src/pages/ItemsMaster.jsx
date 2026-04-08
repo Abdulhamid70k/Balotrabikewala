@@ -23,7 +23,7 @@ export default function ItemsMaster() {
     return () => document.removeEventListener("openAddItem", handler);
   }, [dispatch]);
 
-  const filtered = items.filter((i) =>
+  const filtered = (items || []).filter((i) =>
     i.name.toLowerCase().includes(search.toLowerCase()) ||
     i.make?.toLowerCase().includes(search.toLowerCase())
   );

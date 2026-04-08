@@ -22,7 +22,7 @@ export default function BikeNameInput({ value, onChange, placeholder = "Bike nam
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const filtered = allItems.filter((item) =>
+  const filtered = (allItems || []).filter((item) =>
     item.name.toLowerCase().includes(query.toLowerCase()) ||
     item.make?.toLowerCase().includes(query.toLowerCase()) ||
     item.brand?.toLowerCase().includes(query.toLowerCase())
