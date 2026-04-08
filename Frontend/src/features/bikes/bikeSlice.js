@@ -67,7 +67,7 @@ export const fetchStats = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const { data } = await api.get("/bikes/stats");
-      return data.data[0];   // 🔥 FIX
+      return data.data; // ✅ FIXED: data[0] nahi, poora object
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Failed to fetch stats");
     }
@@ -77,13 +77,13 @@ export const fetchStats = createAsyncThunk(
 const bikeSlice = createSlice({
   name: "bikes",
   initialState: {
-    bikes:       [],
-    currentBike: null,
-    stats:       null,
-    pagination:  { page: 1, limit: 15, total: 0, pages: 1 },
-    loading:     false,
-    statsLoading: false,
-    error:        null,
+    bikes:          [],
+    currentBike:    null,
+    stats:          null,
+    pagination:     { page: 1, limit: 15, total: 0, pages: 1 },
+    loading:        false,
+    statsLoading:   false,
+    error:          null,
     successMessage: null,
   },
   reducers: {
@@ -95,8 +95,8 @@ const bikeSlice = createSlice({
       .addCase(fetchBikes.pending,   (state) => { state.loading = true; state.error = null; })
       .addCase(fetchBikes.fulfilled, (state, action) => {
         state.loading    = false;
-        state.bikes      = action.payload.data       ?? [];          // ✅ safety
-        state.pagination = action.payload.pagination ?? { total: 0, page: 1, pages: 1, limit: 15 }; // ✅ safety
+        state.bikes      = action.payload.data       ?? [];
+        state.pagination = action.payload.pagination ?? { total: 0, page: 1, pages: 1, limit: 15 };
       })
       .addCase(fetchBikes.rejected,  (state, action) => { state.loading = false; state.error = action.payload; });
 
@@ -133,17 +133,25 @@ const bikeSlice = createSlice({
       .addCase(deleteBike.rejected, (state, action) => { state.error = action.payload; });
 
     builder
-      .addCase(fetchStats.pending,   (state) => { state.statsLoading = true; })
-      .addCase(fetchStats.fulfilled, (state, action) => { state.statsLoading = false; state.stats = action.payload; })
-      .addCase(fetchStats.rejected,  (state) => { state.statsLoading = false; });
+      .addCase(fetchStats.pending,   (state) => { state.statsLoading = true;  state.error = null; })
+      .addCase(fetchStats.fulfilled, (state, action) => {
+        state.statsLoading = false;
+        state.stats        = action.payload; // ✅ { statusBreakdown, monthly } store hoga
+      })
+      .addCase(fetchStats.rejected,  (state, action) => {
+        state.statsLoading = false;
+        state.stats        = { statusBreakdown: [], monthly: [] }; // ✅ crash nahi hoga
+        state.error        = action.payload;
+      });
   },
 });
 
 export const { clearBikeMessages, clearCurrentBike } = bikeSlice.actions;
 export default bikeSlice.reducer;
 
-export const selectBikes       = (state) => state.bikes.bikes;
-export const selectCurrentBike = (state) => state.bikes.currentBike;
-export const selectBikeStats   = (state) => state.bikes.stats;
-export const selectBikeLoading = (state) => state.bikes.loading;
-export const selectPagination  = (state) => state.bikes.pagination;
+export const selectBikes        = (state) => state.bikes.bikes;
+export const selectCurrentBike  = (state) => state.bikes.currentBike;
+export const selectBikeStats    = (state) => state.bikes.stats;
+export const selectBikeLoading  = (state) => state.bikes.loading;
+export const selectStatsLoading = (state) => state.bikes.statsLoading; // ✅ naya selector
+export const selectPagination   = (state) => state.bikes.pagination;
