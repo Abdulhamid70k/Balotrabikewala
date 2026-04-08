@@ -5,7 +5,7 @@ export const loginUser = createAsyncThunk(
   "auth/login",
   async (credentials, { rejectWithValue }) => {
     try {
-      const { data } = await publicAPI.post("/api/auth/login", credentials);
+      const { data } = await publicAPI.post("/auth/login", credentials);
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Login failed");
@@ -17,7 +17,7 @@ export const logoutUser = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      const { default: api } = await import("../../services/api");
+      const { default: api } = await import("../../services");
       await api.post("/api/auth/logout");
     } catch (err) {
       return rejectWithValue(err.response?.data?.message);
