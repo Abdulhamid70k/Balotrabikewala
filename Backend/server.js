@@ -38,31 +38,27 @@ app.use(helmet());
 
 
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // No origin (mobile apps, curl, etc)
-      if (!origin) return callback(null, true);
-      
-      // Allowed conditions
-      if (
-        origin === "http://localhost:5173" ||
-        origin.endsWith(".vercel.app") ||        // ← saare vercel subdomains
-        origin === process.env.CLIENT_URL
-      ) {
-        return callback(null, true);
-      }
-      
-      callback(new Error(`CORS blocked: ${origin}`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
 
-// OPTIONS preflight ke liye — CORS se pehle nahi, baad mein
-app.options("*", cors());
+    if (
+      origin === "http://localhost:5173" ||
+      origin.endsWith(".vercel.app") ||
+      origin === process.env.CLIENT_URL
+    ) {
+      return callback(null, true);
+    }
+
+    callback(new Error(`CORS blocked: ${origin}`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // ✅ FIXED
 app.use(cookieParser());
 app.use("/api", rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 app.use(express.json({ limit: "2mb" }));
