@@ -17,7 +17,7 @@ export const logoutUser = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      const { default: api } = await import("../../services");
+      const { default: api } = await import("../../services/api");
       await api.post("/api/auth/logout");
     } catch (err) {
       return rejectWithValue(err.response?.data?.message);
