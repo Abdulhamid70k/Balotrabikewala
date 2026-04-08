@@ -7,13 +7,9 @@ const serviceItemSchema = new mongoose.Schema({
 
 const bikeSchema = new mongoose.Schema(
   {
-    // ─── Item reference (from Items Master) ──────────────────────
-    item: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Item",
-    },
-    // Denormalized for display even if item deleted
-    bikeName: { type: String, required: [true, "Bike name zaroori hai"], trim: true },
+    // ─── Item reference ───────────────────────────────────────────
+    item:      { type: mongoose.Schema.Types.ObjectId, ref: "Item" },
+    bikeName:  { type: String, required: [true, "Bike name zaroori hai"], trim: true },
     bikeMake:  { type: String, trim: true, default: "" },
     bikeBrand: { type: String, trim: true, default: "" },
 
@@ -57,22 +53,19 @@ const bikeSchema = new mongoose.Schema(
       sellDate:      Date,
       paymentType:   { type: String, enum: ["cash", "finance"], default: "cash" },
 
-      // Customer details
       customer: {
         name:    { type: String, trim: true },
         mobile:  { type: String, trim: true },
         address: { type: String, trim: true },
       },
 
-      // Cash
       cash: {
         amountPaid: { type: Number, default: 0 },
         amountDue:  { type: Number, default: 0 },
         dueDate:    Date,
-        dueNote:    { type: String, trim: true }, // when customer will pay
+        dueNote:    { type: String, trim: true },
       },
 
-      // Finance
       finance: {
         companyName:   { type: String, trim: true },
         financeAmount: { type: Number, default: 0 },
@@ -84,7 +77,11 @@ const bikeSchema = new mongoose.Schema(
 
     notes: { type: String, maxlength: 500 },
 
-    
+    // ─── Single admin system — String instead of ObjectId ─────────
+    createdBy: {
+      type: String,
+      default: "admin",
+    },
   },
   {
     timestamps: true,
@@ -105,7 +102,7 @@ bikeSchema.virtual("profit").get(function () {
 });
 
 bikeSchema.index({ status: 1 });
-
+bikeSchema.index({ createdBy: 1 });
 bikeSchema.index({ "sale.sellDate": -1 });
 bikeSchema.index({ bikeName: "text", bikeMake: "text" });
 
