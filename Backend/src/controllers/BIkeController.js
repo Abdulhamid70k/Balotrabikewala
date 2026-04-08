@@ -36,3 +36,28 @@ export const createBike = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+export const deleteBike = async (req, res) => {
+  try {
+    const bike = await Bike.findById(req.params.id);
+
+    if (!bike) {
+      return res.status(404).json({
+        success: false,
+        message: "Bike nahi mili",
+      });
+    }
+
+    await bike.deleteOne();
+
+    res.json({
+      success: true,
+      message: "Bike delete ho gayi",
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
