@@ -1,5 +1,5 @@
 import express from "express";
-import { getBikes, getBike, createBike, updateBike, deleteBike, getStats, getReport } from "../controllers/BIkeController.js";
+import { getBikes, getBike, createBike, updateBike, deleteBike, getStats,  } from "../controllers/BIkeController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
