@@ -1,3 +1,11 @@
+// ─── 404 Not Found ───────────────────────────────────────────────────────────
+export const notFound = (req, res, next) => {
+  const error = new Error(`Route not found: ${req.originalUrl}`);
+  res.status(404);
+  next(error);
+};
+
+// ─── Global Error Handler ─────────────────────────────────────────────────────
 export const errorHandler = (err, req, res, next) => {
   // 🔥 ADD THIS (MOST IMPORTANT)
   res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
