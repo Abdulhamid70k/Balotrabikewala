@@ -1,23 +1,13 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { publicAPI } from "../../services/api";
 
-export const registerUser = createAsyncThunk(
-  "auth/register",
-  async (userData, { rejectWithValue }) => {
-    try {
-      const { data } = await publicAPI.post("/auth/register", userData);
-      return data.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Registration failed");
-    }
-  }
-);
+
 
 export const loginUser = createAsyncThunk(
-  "auth/login",
+  "/api/auth/login",
   async (credentials, { rejectWithValue }) => {
     try {
-      const { data } = await publicAPI.post("/auth/login", credentials);
+      const { data } = await publicAPI.post("/api/auth/login", credentials);
       return data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Login failed");
@@ -26,11 +16,11 @@ export const loginUser = createAsyncThunk(
 );
 
 export const logoutUser = createAsyncThunk(
-  "auth/logout",
+  "/api/auth/logout",
   async (_, { rejectWithValue }) => {
     try {
       const { default: api } = await import("../../services/api");
-      await api.post("/auth/logout");
+      await api.post("/api/auth/logout");
     } catch (err) {
       return rejectWithValue(err.response?.data?.message);
     }
