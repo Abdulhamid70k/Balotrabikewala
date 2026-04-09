@@ -13,7 +13,10 @@ const TITLES = {
 export default function Header({ onMenuClick }) {
   const { pathname } = useLocation();
   const isEdit = pathname.includes("/edit");
-  const info = isEdit
+  const isSell = pathname.includes("/sell");
+  const info = isSell
+    ? { title: "Sale Entry", sub: "Bike becho — voucher banao" }
+    : isEdit
     ? { title: "Edit Bike", sub: "Update details" }
     : (TITLES[pathname] || TITLES[pathname.replace(/\/reports\/.*/, "/reports")] || { title: "BikeResell Pro", sub: "" });
 

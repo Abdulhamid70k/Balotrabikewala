@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Pencil, Trash2, Printer, ArrowLeft, IndianRupee, User, Phone, MapPin, CreditCard, Calendar } from "lucide-react";
+import { Pencil, Trash2, Printer, ArrowLeft, IndianRupee, User, Phone, MapPin, CreditCard, Calendar, ShoppingCart } from "lucide-react";
 import { fetchBike, deleteBike, selectCurrentBike, selectBikeLoading } from "../features/bikes/bikeSlice";
 import { selectIsAdmin } from "../features/auth/authSlice";
 import { StatusBadge, Spinner } from "../components/UI";
@@ -81,6 +81,12 @@ export default function BikeDetail() {
             className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold transition-colors">
             <Printer size={15} /> Print
           </button>
+          {bike.status === "in_stock" && (
+            <Link to={`/stock/${id}/sell`}
+              className="flex items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
+              <ShoppingCart size={15} /> Sell Karo
+            </Link>
+          )}
           <Link to={`/stock/${id}/edit`}
             className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-xl text-sm font-semibold transition-colors">
             <Pencil size={15} /> Edit
