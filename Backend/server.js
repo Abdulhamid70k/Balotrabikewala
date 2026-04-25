@@ -14,6 +14,7 @@ import bikeRoutes  from "./src/routes/bikeRoutes.js";
 import itemRoutes  from "./src/routes/itemRoutes.js";
 import userRoutes  from "./src/routes/userRoutes.js";
 import { errorHandler, notFound } from "./src/middlewares/errorHandler.js";
+import publicRoutes from "./src/routes/publicRoutes.js";
 
 
 
@@ -71,6 +72,7 @@ app.use("/api/auth",  authRoutes);
 app.use("/api/bikes", bikeRoutes);
 app.use("/api/items", itemRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/public", publicRoutes); // NO auth middleware
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../client/dist")));
