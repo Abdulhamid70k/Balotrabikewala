@@ -7,7 +7,6 @@ const serviceItemSchema = new mongoose.Schema({
 
 const bikeSchema = new mongoose.Schema(
   {
-    // ─── Item reference ───────────────────────────────────────────
     item:      { type: mongoose.Schema.Types.ObjectId, ref: "Item" },
     bikeName:  { type: String, required: [true, "Bike name zaroori hai"], trim: true },
     bikeMake:  { type: String, trim: true, default: "" },
@@ -17,14 +16,20 @@ const bikeSchema = new mongoose.Schema(
     color:              { type: String, trim: true },
     registrationNumber: { type: String, trim: true, uppercase: true },
 
-    // ─── Status ──────────────────────────────────────────────────
+    // Images (Cloudinary or any URL)
+    images: [
+      {
+        public_id: { type: String, default: "" },
+        url:       { type: String, default: "" },
+      }
+    ],
+
     status: {
       type: String,
       enum: ["pending_arrival", "in_stock", "sold"],
       default: "in_stock",
     },
 
-    // ─── Purchase Voucher ─────────────────────────────────────────
     purchase: {
       voucherNumber: { type: String, trim: true },
       buyFrom:       { type: String, trim: true },
@@ -32,40 +37,34 @@ const bikeSchema = new mongoose.Schema(
       buyPrice:      { type: Number, default: 0, min: 0 },
     },
 
-    // ─── Service ─────────────────────────────────────────────────
     service: {
       items:     [serviceItemSchema],
       totalCost: { type: Number, default: 0, min: 0 },
       notes:     String,
     },
 
-    // ─── RC Transfer ─────────────────────────────────────────────
     rc: {
       transferred:  { type: Boolean, default: false },
       charge:       { type: Number, default: 0 },
       transferDate: Date,
     },
 
-    // ─── Sale Voucher ─────────────────────────────────────────────
     sale: {
       voucherNumber: { type: String, trim: true },
       sellPrice:     { type: Number, default: 0, min: 0 },
       sellDate:      Date,
       paymentType:   { type: String, enum: ["cash", "finance"], default: "cash" },
-
       customer: {
         name:    { type: String, trim: true },
         mobile:  { type: String, trim: true },
         address: { type: String, trim: true },
       },
-
       cash: {
         amountPaid: { type: Number, default: 0 },
         amountDue:  { type: Number, default: 0 },
         dueDate:    Date,
         dueNote:    { type: String, trim: true },
       },
-
       finance: {
         companyName:   { type: String, trim: true },
         financeAmount: { type: Number, default: 0 },
@@ -76,12 +75,7 @@ const bikeSchema = new mongoose.Schema(
     },
 
     notes: { type: String, maxlength: 500 },
-
-    // ─── Single admin system — String instead of ObjectId ─────────
-    createdBy: {
-      type: String,
-      default: "admin",
-    },
+    createdBy: { type: String, default: "admin" },
   },
   {
     timestamps: true,
@@ -90,7 +84,6 @@ const bikeSchema = new mongoose.Schema(
   }
 );
 
-// ─── Virtual: Net profit ──────────────────────────────────────────
 bikeSchema.virtual("profit").get(function () {
   if (this.status !== "sold") return null;
   return (

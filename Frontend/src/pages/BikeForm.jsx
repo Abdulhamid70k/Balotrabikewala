@@ -60,6 +60,7 @@ const INIT = {
   "sale.finance.companyName": "", "sale.finance.financeAmount": "",
   "sale.finance.emiAmount": "", "sale.finance.emiMonths": "", "sale.finance.startDate": "",
   notes: "",
+  images: [],
 };
 
 const flatten = (obj, prefix = "") =>
@@ -111,6 +112,7 @@ export default function BikeForm() {
       DATE_KEYS.forEach((k) => { if (flat[k]) flat[k] = new Date(flat[k]).toISOString().split("T")[0]; });
       setForm((p) => ({ ...p, ...flat }));
       setSvcItems(current.service?.items || []);
+      setImgList(current.images || []);
     }
   }, [current, isEdit]);
 
@@ -153,6 +155,7 @@ export default function BikeForm() {
 
     const nested = nest(form);
     nested.service = { ...nested.service, items: svcItems };
+    nested.images = imgList;
 
     const result = await dispatch(isEdit ? updateBike({ id, formData: nested }) : createBike(nested));
     if (!result.error) {
@@ -358,6 +361,30 @@ export default function BikeForm() {
           </Section>
         </>
       )}
+
+      {/* ── Images ───────────────────────────────────────────────── */}
+      <Section title="📸 Bike Photos (URL se add karo)">
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <input className={inp()} value={imgUrl} onChange={e => setImgUrl(e.target.value)}
+            placeholder="Image URL paste karo (Google Drive, Cloudinary, etc.)" style={{ flex: 1 }} />
+          <button type="button"
+            onClick={() => { if (!imgUrl.trim()) return; setImgList(p => [...p, { url: imgUrl.trim(), public_id: Date.now().toString() }]); setImgUrl(""); }}
+            className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-colors whitespace-nowrap">
+            + Add
+          </button>
+        </div>
+        {imgList.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+            {imgList.map((img, i) => (
+              <div key={i} className="relative">
+                <img src={img.url} alt="bike" className="w-24 h-20 object-cover rounded-xl border-2 border-slate-200" onError={e => e.target.src = "https://via.placeholder.com/96x80?text=🏍️"} />
+                <button type="button" onClick={() => setImgList(p => p.filter((_, idx) => idx !== i))}
+                  className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
 
       {/* ── Notes ─────────────────────────────────────────────── */}
       <Section title="📝 Notes">
