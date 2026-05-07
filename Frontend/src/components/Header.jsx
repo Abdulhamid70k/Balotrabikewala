@@ -40,7 +40,7 @@ export default function Header() {
               <ArrowLeft size={17} className="text-slate-600" />
             </button>
           ) : (
-            <div className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center">
               <img
                 src={LOGO}  
                 alt="Logo"
