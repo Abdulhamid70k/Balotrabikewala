@@ -1,50 +1,68 @@
-import { useLocation, Link } from "react-router-dom";
-import { Menu, Plus } from "lucide-react";
-
-const TITLES = {
-  "/dashboard":   { title: "Dashboard",     sub: "Business overview" },
-  "/stock":       { title: "Bike Stock",    sub: "Manage your inventory" },
-  "/stock/add":   { title: "Add Bike",      sub: "Purchase entry" },
-  "/items":       { title: "Items Master",  sub: "Bike names & makes" },
-  "/reports":     { title: "Reports",       sub: "Print & export" },
-  "/admin/users": { title: "Users",         sub: "Admin panel" },
+import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { useSelector } from "react-redux";
+import { selectCurrentUser } from "../features/auth/authSlice";
+import LOGO from "../assets/logo.png";
+const PAGE_CONFIG = {
+  "/dashboard":     { title: "Dashboard",      back: false },
+  "/stock":         { title: "Stock",          back: false },
+  "/stock/add":     { title: "Purchase Entry", back: true  },
+  "/stock/service": { title: "Service Entry",  back: true  },
+  "/items":         { title: "Items Master",   back: false },
+  "/reports":       { title: "Reports",        back: false },
+  "/sale":          { title: "Sale Entry",     back: true  },
 };
 
-export default function Header({ onMenuClick }) {
+export default function Header() {
   const { pathname } = useLocation();
-  const isEdit = pathname.includes("/edit");
-  const isSell = pathname.includes("/sell");
-  const info = isSell
-    ? { title: "Sale Entry", sub: "Bike becho — voucher banao" }
-    : isEdit
-    ? { title: "Edit Bike", sub: "Update details" }
-    : (TITLES[pathname] || TITLES[pathname.replace(/\/reports\/.*/, "/reports")] || { title: "BikeResell Pro", sub: "" });
+  const navigate     = useNavigate();
+  const user         = useSelector(selectCurrentUser);
+
+  const isEdit  = pathname.includes("/edit");
+  const isSell  = pathname.includes("/sell");
+  const isDetail = pathname.match(/^\/stock\/[a-f0-9]{24}$/) && !isEdit && !isSell;
+
+  const config = isEdit   ? { title: "Edit Bike",    back: true } :
+                 isSell   ? { title: "Sale Entry",   back: true } :
+                 isDetail ? { title: "Bike Details", back: true } :
+                 PAGE_CONFIG[pathname] || { title: "BikeResell Pro", back: false };
 
   return (
-    <header className="h-14 bg-white border-b border-slate-100 flex items-center justify-between px-4 sticky top-0 z-30 shadow-sm">
-      <div className="flex items-center gap-3">
-        <button onClick={onMenuClick} className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 transition-colors" aria-label="Menu">
-          <Menu size={20} className="text-slate-600" />
-        </button>
-        <div>
-          <h1 className="font-display font-bold text-slate-900 text-base leading-tight">{info.title}</h1>
-          <p className="text-[11px] text-slate-400 hidden sm:block">{info.sub}</p>
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-100">
+      <div className="flex items-center justify-between h-14 px-4">
+        {/* Left */}
+        <div className="flex items-center gap-3">
+          {config.back ? (
+            <button
+              onClick={() => navigate(-1)}
+              className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors"
+            >
+              <ArrowLeft size={17} className="text-slate-600" />
+            </button>
+          ) : (
+            <div className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center">
+              <img
+                src={LOGO}  
+                alt="Logo"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          )}
+          <span className="font-display font-bold text-slate-900 text-base">{config.title}</span>
+        </div>
+
+        {/* Right */}
+        <div className="flex items-center gap-2">
+          {!config.back && (
+            <div className="flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-1.5">
+              <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-white text-[10px] font-bold">
+                {user?.name?.charAt(0).toUpperCase() || "A"}
+              </div>
+              <span className="text-xs font-semibold text-slate-600">{user?.name?.split(" ")[0] || "Admin"}</span>
+            </div>
+          )}
         </div>
       </div>
-
-      {pathname === "/stock" && (
-        <Link to="/stock/add"
-          className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white pl-3 pr-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm">
-          <Plus size={16} /> Add Bike
-        </Link>
-      )}
-      {pathname === "/items" && (
-        <button id="add-item-btn"
-          className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white pl-3 pr-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
-          onClick={() => document.dispatchEvent(new CustomEvent("openAddItem"))}>
-          <Plus size={16} /> Add Item
-        </button>
-      )}
     </header>
   );
 }

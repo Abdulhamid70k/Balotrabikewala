@@ -1,7 +1,6 @@
-// Reports.jsx
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchStats, fetchBikes, selectBikeStats, selectBikes } from "../features/bikes/bikesSlice";
+import { fetchStats, fetchBikes, selectBikeStats, selectBikes } from "../features/bikes/bikeSlice"; // ✅ fixed: was "bikesSlice"
 import { Spinner, Card, SectionHeader } from "../components/UI";
 
 const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
@@ -39,14 +38,14 @@ export default function Reports() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Revenue",     value: fmt(sold.totalSellPrice),  icon: "💰", color: "brand" },
-          { label: "Total Buy Cost",    value: fmt(sold.totalBuyPrice),   icon: "🛒", color: "info" },
-          { label: "Total Service",     value: fmt(sold.totalServiceCost),icon: "🔧", color: "warning" },
-          { label: "Net Profit/Loss",   value: fmt(totalProfit),          icon: totalProfit >= 0 ? "📈" : "📉", color: totalProfit >= 0 ? "success" : "danger" },
+          { label: "Total Revenue",   value: fmt(sold.totalSellPrice),   icon: "💰", color: "brand" },
+          { label: "Total Buy Cost",  value: fmt(sold.totalBuyPrice),    icon: "🛒", color: "info" },
+          { label: "Total Service",   value: fmt(sold.totalServiceCost), icon: "🔧", color: "warning" },
+          { label: "Net Profit/Loss", value: fmt(totalProfit),           icon: totalProfit >= 0 ? "📈" : "📉", color: totalProfit >= 0 ? "success" : "danger" },
         ].map((s) => {
           const borderColor = { brand: "border-t-orange-500", info: "border-t-blue-500", warning: "border-t-amber-500", success: "border-t-green-500", danger: "border-t-red-500" }[s.color];
           return (
-            <div key={s.label} className={`bg-white rounded-2xl border border-slate-100 shadow-card p-5 border-t-4 ${borderColor}`}>
+            <div key={s.label} className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-5 border-t-4 ${borderColor}`}>
               <span className="text-2xl block mb-2">{s.icon}</span>
               <div className="font-display font-bold text-2xl text-slate-900 leading-none mb-1">{s.value}</div>
               <div className="text-xs text-slate-400 font-medium">{s.label}</div>
@@ -59,8 +58,6 @@ export default function Reports() {
       {stats.monthly?.length > 0 && (
         <Card>
           <SectionHeader title="📅 Monthly Performance" />
-
-          {/* Bar chart */}
           <div className="flex items-end gap-3 h-36 mb-4 overflow-x-auto pb-1">
             {stats.monthly.map((m) => {
               const maxRev = Math.max(...stats.monthly.map((x) => x.revenue), 1);
@@ -84,7 +81,6 @@ export default function Reports() {
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-red-400" /> Loss</span>
           </div>
 
-          {/* Monthly table */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -132,7 +128,7 @@ export default function Reports() {
                 {bikeProfits.map((b) => (
                   <tr key={b._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-3">
-                      <div className="font-bold text-slate-800">{b.model}</div>
+                      <div className="font-bold text-slate-800">{b.bikeName}</div>{/* ✅ fixed: was b.model */}
                       <div className="text-xs text-slate-400">{b.year}{b.purchase?.buyFrom ? ` • ${b.purchase.buyFrom}` : ""}</div>
                     </td>
                     <td className="py-3 px-3 text-slate-600">{fmt(b.purchase?.buyPrice)}</td>

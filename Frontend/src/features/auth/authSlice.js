@@ -3,10 +3,8 @@ import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// Public axios instance — no interceptors needed for login
 const publicAPI = axios.create({ baseURL: BASE_URL, withCredentials: true });
 
-// Single admin login
 export const loginUser = createAsyncThunk(
   "auth/login",
   async (credentials, { rejectWithValue }) => {
@@ -39,8 +37,13 @@ const authSlice = createSlice({
     error:   null,
   },
   reducers: {
+    // ✅ fixed: also update user.accessToken in state + localStorage so it stays in sync after refresh
     setCredentials: (state, action) => {
       state.token = action.payload.token;
+      if (state.user) {
+        state.user = { ...state.user, accessToken: action.payload.token };
+        localStorage.setItem("user", JSON.stringify(state.user));
+      }
       localStorage.setItem("token", action.payload.token);
     },
     logout: (state) => {
@@ -76,7 +79,6 @@ const authSlice = createSlice({
 export const { setCredentials, logout, clearError } = authSlice.actions;
 export default authSlice.reducer;
 
-// Stub so existing imports don't break
 export const registerUser      = () => () => {};
 export const selectCurrentUser = (state) => state.auth.user;
 export const selectToken       = (state) => state.auth.token;

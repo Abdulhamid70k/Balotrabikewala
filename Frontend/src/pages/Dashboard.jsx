@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // ✅ added useNavigate
 import {
   TrendingUp, Bike, CheckCircle2, AlertCircle,
   Clock, ArrowRight, Plus,
@@ -9,8 +9,7 @@ import { fetchStats, fetchBikes, selectBikeStats, selectBikes } from "../feature
 import { selectCurrentUser } from "../features/auth/authSlice";
 import { Spinner, Card, SectionHeader, StatusBadge } from "../components/UI";
 
-const fmt   = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
-const fmtD  = (d) => d ? new Date(d).toLocaleDateString("en-IN") : "—";
+const fmt  = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function StatCard({ label, value, Icon, color, sub }) {
@@ -24,9 +23,7 @@ function StatCard({ label, value, Icon, color, sub }) {
   return (
     <div className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-4 border-t-4 ${colors[color] || colors.orange} hover:-translate-y-0.5 hover:shadow-md transition-all`}>
       <div className="flex items-start justify-between mb-3">
-        <div className="icon p-2 rounded-xl">
-          <Icon size={20} />
-        </div>
+        <div className="icon p-2 rounded-xl"><Icon size={20} /></div>
       </div>
       <div className="font-display font-bold text-2xl text-slate-900 leading-none">{value}</div>
       <div className="text-xs text-slate-400 font-medium mt-1">{label}</div>
@@ -36,7 +33,8 @@ function StatCard({ label, value, Icon, color, sub }) {
 }
 
 export default function Dashboard() {
-  const dispatch = useDispatch();
+  const dispatch  = useDispatch();
+  const navigate  = useNavigate(); // ✅ added
   const user  = useSelector(selectCurrentUser);
   const stats = useSelector(selectBikeStats);
   const bikes = useSelector(selectBikes);
@@ -79,10 +77,10 @@ export default function Dashboard() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard Icon={TrendingUp} label="Total Profit"  value={fmt(totalProfit)}         color={totalProfit >= 0 ? "green" : "red"} />
-        <StatCard Icon={Bike}       label="Stock Mein"    value={`${stock.count   || 0}`}  color="blue"   sub="bikes available" />
-        <StatCard Icon={CheckCircle2} label="Bech Di"     value={`${sold.count    || 0}`}  color="orange" sub="bikes sold" />
-        <StatCard Icon={AlertCircle}  label="Due Baaki"   value={fmt(totalDue)}            color="amber" />
+        <StatCard Icon={TrendingUp}   label="Total Profit" value={fmt(totalProfit)}        color={totalProfit >= 0 ? "green" : "red"} />
+        <StatCard Icon={Bike}         label="Stock Mein"   value={`${stock.count   || 0}`} color="blue"   sub="bikes available" />
+        <StatCard Icon={CheckCircle2} label="Bech Di"      value={`${sold.count    || 0}`} color="orange" sub="bikes sold" />
+        <StatCard Icon={AlertCircle}  label="Due Baaki"    value={fmt(totalDue)}           color="amber" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
@@ -131,7 +129,6 @@ export default function Dashboard() {
 
         {/* Right column */}
         <div className="space-y-4">
-          {/* Pending */}
           {pending.count > 0 && (
             <Card>
               <div className="flex items-center gap-2 mb-2">
@@ -146,7 +143,6 @@ export default function Dashboard() {
             </Card>
           )}
 
-          {/* Due payments */}
           <Card>
             <SectionHeader title="Due Payments" />
             {dueBikes.length === 0 ? (
@@ -203,8 +199,11 @@ export default function Dashboard() {
                   ? (b.sale?.sellPrice||0) - (b.purchase?.buyPrice||0) - (b.service?.totalCost||0) - (b.rc?.charge||0)
                   : null;
                 return (
-                  <tr key={b._id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer"
-                    onClick={() => window.location.href = `/stock/${b._id}`}>
+                  <tr
+                    key={b._id}
+                    className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/stock/${b._id}`)} // ✅ fixed: was window.location.href
+                  >
                     <td className="px-4 py-3">
                       <div className="font-semibold text-slate-800 text-sm">{b.bikeName}</div>
                       <div className="text-xs text-slate-400">{b.year}{b.bikeMake ? ` • ${b.bikeMake}` : ""}</div>

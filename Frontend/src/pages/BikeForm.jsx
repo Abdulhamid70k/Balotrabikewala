@@ -54,13 +54,13 @@ const INIT = {
   year: "", color: "", registrationNumber: "", status: "in_stock",
   "purchase.voucherNumber": "", "purchase.buyFrom": "", "purchase.buyDate": "", "purchase.buyPrice": "",
   "service.totalCost": "", "service.notes": "",
+  "rc.transferred": false, "rc.charge": "", "rc.transferDate": "",
   "sale.voucherNumber": "", "sale.sellPrice": "", "sale.sellDate": "", "sale.paymentType": "cash",
   "sale.customer.name": "", "sale.customer.mobile": "", "sale.customer.address": "",
   "sale.cash.amountPaid": "", "sale.cash.amountDue": "", "sale.cash.dueDate": "", "sale.cash.dueNote": "",
   "sale.finance.companyName": "", "sale.finance.financeAmount": "",
   "sale.finance.emiAmount": "", "sale.finance.emiMonths": "", "sale.finance.startDate": "",
   notes: "",
-  images: [],
 };
 
 const flatten = (obj, prefix = "") =>
@@ -108,11 +108,10 @@ export default function BikeForm() {
   useEffect(() => {
     if (isEdit && current) {
       const flat = flatten(current);
-      const DATE_KEYS = ["purchase.buyDate","sale.sellDate","sale.cash.dueDate","sale.finance.startDate"];
+      const DATE_KEYS = ["purchase.buyDate","sale.sellDate","sale.cash.dueDate","rc.transferDate","sale.finance.startDate"];
       DATE_KEYS.forEach((k) => { if (flat[k]) flat[k] = new Date(flat[k]).toISOString().split("T")[0]; });
       setForm((p) => ({ ...p, ...flat }));
       setSvcItems(current.service?.items || []);
-      setImgList(current.images || []);
     }
   }, [current, isEdit]);
 
@@ -155,7 +154,6 @@ export default function BikeForm() {
 
     const nested = nest(form);
     nested.service = { ...nested.service, items: svcItems };
-    nested.images = imgList;
 
     const result = await dispatch(isEdit ? updateBike({ id, formData: nested }) : createBike(nested));
     if (!result.error) {
@@ -284,7 +282,23 @@ export default function BikeForm() {
         </div>
       </Section>
 
-
+      {/* ── RC Transfer ───────────────────────────────────────── */}
+      <Section title="📄 RC Transfer">
+        <label className="flex items-center gap-3 cursor-pointer text-sm font-medium text-slate-700">
+          <input type="checkbox" checked={form["rc.transferred"]} onChange={set("rc.transferred")} className="w-4 h-4 accent-orange-500" />
+          RC Transfer ki gayi hai
+        </label>
+        {form["rc.transferred"] && (
+          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+            <Field label="RC Charge (₹)">
+              <input className={inp()} type="number" value={form["rc.charge"]} onChange={set("rc.charge")} placeholder="0" />
+            </Field>
+            <Field label="Transfer Date">
+              <input className={inp()} type="date" value={form["rc.transferDate"]} onChange={set("rc.transferDate")} />
+            </Field>
+          </div>
+        )}
+      </Section>
 
       {/* ── Sale Voucher (only if sold) ───────────────────────── */}
       {isSold && (
@@ -361,30 +375,6 @@ export default function BikeForm() {
           </Section>
         </>
       )}
-
-      {/* ── Images ───────────────────────────────────────────────── */}
-      <Section title="📸 Bike Photos (URL se add karo)">
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <input className={inp()} value={imgUrl} onChange={e => setImgUrl(e.target.value)}
-            placeholder="Image URL paste karo (Google Drive, Cloudinary, etc.)" style={{ flex: 1 }} />
-          <button type="button"
-            onClick={() => { if (!imgUrl.trim()) return; setImgList(p => [...p, { url: imgUrl.trim(), public_id: Date.now().toString() }]); setImgUrl(""); }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-colors whitespace-nowrap">
-            + Add
-          </button>
-        </div>
-        {imgList.length > 0 && (
-          <div className="flex flex-wrap gap-3">
-            {imgList.map((img, i) => (
-              <div key={i} className="relative">
-                <img src={img.url} alt="bike" className="w-24 h-20 object-cover rounded-xl border-2 border-slate-200" onError={e => e.target.src = "https://via.placeholder.com/96x80?text=🏍️"} />
-                <button type="button" onClick={() => setImgList(p => p.filter((_, idx) => idx !== i))}
-                  className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">✕</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </Section>
 
       {/* ── Notes ─────────────────────────────────────────────── */}
       <Section title="📝 Notes">
