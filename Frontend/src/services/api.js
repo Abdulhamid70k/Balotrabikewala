@@ -10,7 +10,7 @@ export const publicAPI = axios.create({ baseURL: BASE_URL });
 // ─── Private instance (with auth + auto-refresh) ─────────────────────────────
 const privateAPI = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true, // send cookies (refresh token)
+  withCredentials: true,
 });
 
 // Attach access token to every request
@@ -22,7 +22,7 @@ privateAPI.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-refresh on 401 TOKEN_EXPIRED
+// Auto-refresh on 401 TOKEN_EXPIRED — hard logout on any other 401
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -33,16 +33,26 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+const forceLogout = () => {
+  processQueue(new Error("Session expired"), null);
+  store.dispatch(logout());
+};
+
 privateAPI.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const status  = error.response?.status;
+    const code    = error.response?.data?.code;
 
-    if (
-      error.response?.status === 401 &&
-      error.response?.data?.code === "TOKEN_EXPIRED" &&
-      !originalRequest._retry
-    ) {
+    // 401 but NOT token-expired → hard logout immediately (invalid token, deactivated, etc.)
+    if (status === 401 && code !== "TOKEN_EXPIRED") {
+      forceLogout();
+      return Promise.reject(error);
+    }
+
+    // 401 + TOKEN_EXPIRED → try refresh once
+    if (status === 401 && code === "TOKEN_EXPIRED" && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -67,8 +77,8 @@ privateAPI.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return privateAPI(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError, null);
-        store.dispatch(logout());
+        // Refresh failed (cookie expired or invalid) → force logout
+        forceLogout();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

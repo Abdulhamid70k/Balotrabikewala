@@ -22,11 +22,20 @@ export const logoutUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await publicAPI.post("/auth/logout");
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message);
+    } catch {
+      // Even if API call fails, clear local state
     }
   }
 );
+
+const clearAuth = (state) => {
+  state.user    = null;
+  state.token   = null;
+  state.loading = false;   // ← loader stuck nahi hoga
+  state.error   = null;
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+};
 
 const authSlice = createSlice({
   name: "auth",
@@ -37,7 +46,6 @@ const authSlice = createSlice({
     error:   null,
   },
   reducers: {
-    // ✅ fixed: also update user.accessToken in state + localStorage so it stays in sync after refresh
     setCredentials: (state, action) => {
       state.token = action.payload.token;
       if (state.user) {
@@ -46,18 +54,13 @@ const authSlice = createSlice({
       }
       localStorage.setItem("token", action.payload.token);
     },
-    logout: (state) => {
-      state.user  = null;
-      state.token = null;
-      state.error = null;
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-    },
+    // Called directly from api.js interceptor on 401 / refresh failure
+    logout: clearAuth,
     clearError: (state) => { state.error = null; },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(loginUser.pending,   (state) => { state.loading = true; state.error = null; })
+      .addCase(loginUser.pending,   (state) => { state.loading = true;  state.error = null; })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
         state.user    = action.payload;
@@ -67,12 +70,9 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.rejected,  (state, action) => { state.loading = false; state.error = action.payload; })
 
-      .addCase(logoutUser.fulfilled, (state) => {
-        state.user  = null;
-        state.token = null;
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-      });
+      .addCase(logoutUser.pending,   (state) => { state.loading = true; })
+      .addCase(logoutUser.fulfilled, clearAuth)
+      .addCase(logoutUser.rejected,  clearAuth);  // error pe bhi clear karo
   },
 });
 
