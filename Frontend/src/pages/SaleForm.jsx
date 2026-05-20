@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Save, X, User, Phone, MapPin, CreditCard, Hash, IndianRupee } from "lucide-react";
+import { Save, X, User, Phone, MapPin, Hash, IndianRupee } from "lucide-react";
 import {
   fetchBike, updateBike,
   selectCurrentBike, selectBikeLoading,
@@ -40,27 +40,12 @@ function Section({ title, children }) {
   );
 }
 
-function RadioPill({ label, value, current, onChange }) {
-  const active = current === value;
-  return (
-    <label className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 cursor-pointer transition-all text-sm font-semibold select-none
-      ${active
-        ? "border-orange-400 bg-orange-50 text-orange-700"
-        : "border-slate-200 bg-slate-50 text-slate-500 hover:border-orange-200"}`}>
-      <input type="radio" value={value} checked={active} onChange={() => onChange(value)} className="hidden" />
-      {label}
-    </label>
-  );
-}
-
 const INIT_SALE = {
   voucherNumber: "",
   sellPrice: "",
   sellDate: new Date().toISOString().split("T")[0],
-  paymentType: "cash",
   customer: { name: "", mobile: "", address: "" },
   cash: { amountPaid: "", amountDue: "", dueDate: "", dueNote: "" },
-  finance: { companyName: "", financeAmount: "", emiAmount: "", emiMonths: "", startDate: "" },
 };
 
 export default function SaleForm() {
@@ -78,9 +63,17 @@ export default function SaleForm() {
     return () => dispatch(clearCurrentBike());
   }, [id, dispatch]);
 
+  // FIX: Agar bike already sold hai toh detail page pe bhejo
+  useEffect(() => {
+    if (bike && bike.status === "sold") {
+      toast.error("Ye bike pehle se bech di gayi hai!");
+      navigate(`/stock/${id}`, { replace: true });
+    }
+  }, [bike, id, navigate]);
+
   const setField = (path, value) => {
     setSale((prev) => {
-      const keys  = path.split(".");
+      const keys    = path.split(".");
       const updated = { ...prev };
       let cur = updated;
       for (let i = 0; i < keys.length - 1; i++) {
@@ -90,7 +83,6 @@ export default function SaleForm() {
       cur[keys[keys.length - 1]] = value;
       return updated;
     });
-    // Clear error
     if (errors[path]) setErrors((p) => { const n = { ...p }; delete n[path]; return n; });
   };
 
@@ -113,21 +105,14 @@ export default function SaleForm() {
         voucherNumber: sale.voucherNumber,
         sellPrice:     Number(sale.sellPrice),
         sellDate:      sale.sellDate,
-        paymentType:   sale.paymentType,
+        paymentType:   "cash",
         customer:      sale.customer,
-        cash: sale.paymentType === "cash" ? {
+        cash: {
           amountPaid: Number(sale.cash.amountPaid) || 0,
           amountDue:  Number(sale.cash.amountDue)  || 0,
           dueDate:    sale.cash.dueDate  || undefined,
           dueNote:    sale.cash.dueNote  || "",
-        } : undefined,
-        finance: sale.paymentType === "finance" ? {
-          companyName:   sale.finance.companyName,
-          financeAmount: Number(sale.finance.financeAmount) || 0,
-          emiAmount:     Number(sale.finance.emiAmount)     || 0,
-          emiMonths:     Number(sale.finance.emiMonths)     || 0,
-          startDate:     sale.finance.startDate || undefined,
-        } : undefined,
+        },
       },
     };
 
@@ -141,43 +126,42 @@ export default function SaleForm() {
     }
   };
 
-  if (loading && !bike) return <Spinner center size="lg" />;
+  // Bike load hone tak ya redirect ke waqt spinner dikhao
+  if (loading || !bike || bike.status === "sold") return <Spinner center size="lg" />;
 
-  const isFinance = sale.paymentType === "finance";
-  const hasDue    = Number(sale.cash.amountDue) > 0;
-  const profit    = bike
-    ? Number(sale.sellPrice || 0) - (bike.purchase?.buyPrice || 0) - (bike.service?.totalCost || 0) - (bike.rc?.charge || 0)
-    : 0;
+  const hasDue = Number(sale.cash.amountDue) > 0;
+  const profit = Number(sale.sellPrice || 0)
+    - (bike.purchase?.buyPrice   || 0)
+    - (bike.service?.totalCost   || 0)
+    - (bike.rc?.charge           || 0);
 
   return (
     <div className="max-w-2xl space-y-4 pb-10">
 
       {/* Bike info banner */}
-      {bike && (
-        <div className="bg-slate-900 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <p className="text-slate-400 text-xs mb-0.5">Sale Entry For</p>
-            <h2 className="font-display font-bold text-white text-xl">{bike.bikeName}</h2>
-            <p className="text-slate-400 text-sm">
-              {[bike.bikeMake, bike.year, bike.color].filter(Boolean).join(" • ")}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-slate-400 text-xs">Purchase Price</p>
-            <p className="text-orange-400 font-bold text-lg">
-              ₹{Number(bike.purchase?.buyPrice || 0).toLocaleString("en-IN")}
-            </p>
-            {sale.sellPrice && (
-              <>
-                <p className="text-slate-400 text-xs mt-1">Expected Profit</p>
-                <p className={`font-bold text-lg ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
-                  ₹{profit.toLocaleString("en-IN")}
-                </p>
-              </>
-            )}
-          </div>
+      <div className="bg-slate-900 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <p className="text-slate-400 text-xs mb-0.5">Sale Entry For</p>
+          <h2 className="font-display font-bold text-white text-xl">{bike.bikeName}</h2>
+          <p className="text-slate-400 text-sm">
+            {[bike.bikeMake, bike.year, bike.color].filter(Boolean).join(" • ")}
+          </p>
         </div>
-      )}
+        <div className="text-right">
+          <p className="text-slate-400 text-xs">Purchase Price</p>
+          <p className="text-orange-400 font-bold text-lg">
+            ₹{Number(bike.purchase?.buyPrice || 0).toLocaleString("en-IN")}
+          </p>
+          {sale.sellPrice && (
+            <>
+              <p className="text-slate-400 text-xs mt-1">Expected Profit</p>
+              <p className={`font-bold text-lg ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                ₹{profit.toLocaleString("en-IN")}
+              </p>
+            </>
+          )}
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
@@ -206,7 +190,7 @@ export default function SaleForm() {
           </div>
         </Section>
 
-        {/* Sale Voucher */}
+        {/* Sale Details — cash only, no finance */}
         <Section title="🤝 Sale Details">
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Voucher Number" icon={Hash}>
@@ -230,67 +214,36 @@ export default function SaleForm() {
             </Field>
           </div>
 
-          {/* Payment type */}
-          <div className="mt-4">
-            <label className="block text-xs font-semibold text-slate-500 mb-2">Payment Type</label>
-            <div className="flex gap-2">
-              <RadioPill label="💵 Cash"    value="cash"    current={sale.paymentType} onChange={(v) => setField("paymentType", v)} />
-              <RadioPill label="🏦 Finance" value="finance" current={sale.paymentType} onChange={(v) => setField("paymentType", v)} />
-            </div>
-          </div>
-
-          {/* Cash fields */}
-          {!isFinance && (
-            <div className="grid sm:grid-cols-2 gap-4 mt-4">
-              <Field label="Cash Mila (₹)">
-                <input className={inp()} type="number"
-                  value={sale.cash.amountPaid}
-                  onChange={(e) => setField("cash.amountPaid", e.target.value)}
-                  placeholder="0" />
-              </Field>
-              <Field label="Due Baaki (₹)">
-                <input className={inp()} type="number"
-                  value={sale.cash.amountDue}
-                  onChange={(e) => setField("cash.amountDue", e.target.value)}
-                  placeholder="0" />
-              </Field>
-              {hasDue && (
-                <>
-                  <Field label="Due Payment Date">
-                    <input className={inp()} type="date"
-                      value={sale.cash.dueDate}
-                      onChange={(e) => setField("cash.dueDate", e.target.value)} />
-                  </Field>
-                  <Field label="Due Note (kab dega?)">
-                    <input className={inp()}
-                      value={sale.cash.dueNote}
-                      onChange={(e) => setField("cash.dueNote", e.target.value)}
-                      placeholder="e.g. Next month salary ke baad" />
-                  </Field>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Finance fields */}
-          {isFinance && (
-            <div className="grid sm:grid-cols-2 gap-4 mt-4">
-              {[
-                { path: "finance.companyName",   label: "Finance Company",    type: "text",   ph: "Bajaj Finance, HDFC..." },
-                { path: "finance.financeAmount", label: "Finance Amount (₹)", type: "number", ph: "0" },
-                { path: "finance.emiAmount",     label: "EMI Amount (₹/mo)",  type: "number", ph: "0" },
-                { path: "finance.emiMonths",     label: "EMI Months",         type: "number", ph: "12" },
-                { path: "finance.startDate",     label: "EMI Start Date",     type: "date",   ph: "" },
-              ].map(({ path, label, type, ph }) => (
-                <Field key={path} label={label}>
-                  <input className={inp()} type={type}
-                    value={path.split(".").reduce((o, k) => o?.[k], sale)}
-                    onChange={(e) => setField(path, e.target.value)}
-                    placeholder={ph} />
+          {/* Cash fields only */}
+          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+            <Field label="Cash Mila (₹)">
+              <input className={inp()} type="number"
+                value={sale.cash.amountPaid}
+                onChange={(e) => setField("cash.amountPaid", e.target.value)}
+                placeholder="0" />
+            </Field>
+            <Field label="Due Baaki (₹)">
+              <input className={inp()} type="number"
+                value={sale.cash.amountDue}
+                onChange={(e) => setField("cash.amountDue", e.target.value)}
+                placeholder="0" />
+            </Field>
+            {hasDue && (
+              <>
+                <Field label="Due Payment Date">
+                  <input className={inp()} type="date"
+                    value={sale.cash.dueDate}
+                    onChange={(e) => setField("cash.dueDate", e.target.value)} />
                 </Field>
-              ))}
-            </div>
-          )}
+                <Field label="Due Note (kab dega?)">
+                  <input className={inp()}
+                    value={sale.cash.dueNote}
+                    onChange={(e) => setField("cash.dueNote", e.target.value)}
+                    placeholder="e.g. Next month salary ke baad" />
+                </Field>
+              </>
+            )}
+          </div>
         </Section>
 
         {/* Submit */}

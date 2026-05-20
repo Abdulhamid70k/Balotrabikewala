@@ -1,8 +1,7 @@
 import multer from "multer";
-import cloudinary from "../configs/cloudnary.js";
+import cloudinary from "../config/cloudnary.js"; // ✅ fixed: was ../configs/cloudnary.js
 import streamifier from "streamifier";
 
-// Memory storage — file disk pe nahi, memory mein rakho
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
@@ -19,7 +18,6 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
-// Cloudinary pe directly upload karne ka function
 export const uploadToCloudinary = (buffer) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(

@@ -10,7 +10,6 @@ import { Spinner } from "../components/UI";
 import BikeNameInput from "../components/BikeNameInput";
 import toast from "react-hot-toast";
 
-// Year dropdown options
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 30 }, (_, i) => currentYear - i);
 
@@ -55,11 +54,9 @@ const INIT = {
   "purchase.voucherNumber": "", "purchase.buyFrom": "", "purchase.buyDate": "", "purchase.buyPrice": "",
   "service.totalCost": "", "service.notes": "",
   "rc.transferred": false, "rc.charge": "", "rc.transferDate": "",
-  "sale.voucherNumber": "", "sale.sellPrice": "", "sale.sellDate": "", "sale.paymentType": "cash",
+  "sale.voucherNumber": "", "sale.sellPrice": "", "sale.sellDate": "",
   "sale.customer.name": "", "sale.customer.mobile": "", "sale.customer.address": "",
   "sale.cash.amountPaid": "", "sale.cash.amountDue": "", "sale.cash.dueDate": "", "sale.cash.dueNote": "",
-  "sale.finance.companyName": "", "sale.finance.financeAmount": "",
-  "sale.finance.emiAmount": "", "sale.finance.emiMonths": "", "sale.finance.startDate": "",
   notes: "",
 };
 
@@ -108,7 +105,7 @@ export default function BikeForm() {
   useEffect(() => {
     if (isEdit && current) {
       const flat = flatten(current);
-      const DATE_KEYS = ["purchase.buyDate","sale.sellDate","sale.cash.dueDate","rc.transferDate","sale.finance.startDate"];
+      const DATE_KEYS = ["purchase.buyDate","sale.sellDate","sale.cash.dueDate","rc.transferDate"];
       DATE_KEYS.forEach((k) => { if (flat[k]) flat[k] = new Date(flat[k]).toISOString().split("T")[0]; });
       setForm((p) => ({ ...p, ...flat }));
       setSvcItems(current.service?.items || []);
@@ -140,8 +137,8 @@ export default function BikeForm() {
     if (!form.bikeName.trim())          e.bikeName             = "Bike name zaroori hai";
     if (!form["purchase.buyPrice"])     e["purchase.buyPrice"] = "Buy price zaroori hai";
     if (form.status === "sold") {
-      if (!form["sale.sellPrice"])      e["sale.sellPrice"]    = "Sell price zaroori hai";
-      if (!form["sale.customer.name"])  e["sale.customer.name"]= "Customer name zaroori hai";
+      if (!form["sale.sellPrice"])       e["sale.sellPrice"]     = "Sell price zaroori hai";
+      if (!form["sale.customer.name"])   e["sale.customer.name"] = "Customer name zaroori hai";
       if (!form["sale.customer.mobile"]) e["sale.customer.mobile"] = "Mobile number zaroori hai";
     }
     setErrors(e);
@@ -154,6 +151,11 @@ export default function BikeForm() {
 
     const nested = nest(form);
     nested.service = { ...nested.service, items: svcItems };
+    // Always cash, remove finance
+    if (nested.sale) {
+      nested.sale.paymentType = "cash";
+      delete nested.sale.finance;
+    }
 
     const result = await dispatch(isEdit ? updateBike({ id, formData: nested }) : createBike(nested));
     if (!result.error) {
@@ -167,9 +169,8 @@ export default function BikeForm() {
 
   if (isEdit && loading && !current) return <Spinner center size="lg" />;
 
-  const isSold    = form.status === "sold";
-  const isFinance = form["sale.paymentType"] === "finance";
-  const hasDue    = Number(form["sale.cash.amountDue"]) > 0;
+  const isSold = form.status === "sold";
+  const hasDue = Number(form["sale.cash.amountDue"]) > 0;
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4 pb-10 max-w-3xl">
@@ -207,7 +208,6 @@ export default function BikeForm() {
             </Field>
           </div>
 
-          {/* Status pills */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-2">Status</label>
             <div className="flex gap-2">
@@ -283,11 +283,24 @@ export default function BikeForm() {
       </Section>
 
       {/* ── RC Transfer ───────────────────────────────────────── */}
+      {/* FIX: Sirf checkbox + conditional fields, no form when unchecked */}
       <Section title="📄 RC Transfer">
-        <label className="flex items-center gap-3 cursor-pointer text-sm font-medium text-slate-700">
-          <input type="checkbox" checked={form["rc.transferred"]} onChange={set("rc.transferred")} className="w-4 h-4 accent-orange-500" />
-          RC Transfer ki gayi hai
-        </label>
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="rc-transferred"
+            checked={form["rc.transferred"]}
+            onChange={set("rc.transferred")}
+            className="w-4 h-4 accent-orange-500"
+          />
+          <label htmlFor="rc-transferred" className="text-sm font-medium text-slate-700 cursor-pointer">
+            RC Transfer ki gayi hai
+          </label>
+          {!form["rc.transferred"] && (
+            <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-semibold rounded-lg">No</span>
+          )}
+        </div>
+
         {form["rc.transferred"] && (
           <div className="grid sm:grid-cols-2 gap-4 mt-4">
             <Field label="RC Charge (₹)">
@@ -330,48 +343,25 @@ export default function BikeForm() {
               </Field>
             </div>
 
-            <div className="flex gap-2 mt-4">
-              {[{ value: "cash", label: "💵 Cash" }, { value: "finance", label: "🏦 Finance" }].map((o) => (
-                <RadioPill key={o.value} {...o} current={form["sale.paymentType"]} onChange={(v) => setForm((p) => ({ ...p, "sale.paymentType": v }))} />
-              ))}
-            </div>
-
-            {!isFinance && (
-              <div className="grid sm:grid-cols-2 gap-4 mt-4">
-                <Field label="Cash Mila (₹)">
-                  <input className={inp()} type="number" value={form["sale.cash.amountPaid"]} onChange={set("sale.cash.amountPaid")} placeholder="0" />
-                </Field>
-                <Field label="Due Baaki (₹)">
-                  <input className={inp()} type="number" value={form["sale.cash.amountDue"]} onChange={set("sale.cash.amountDue")} placeholder="0" />
-                </Field>
-                {hasDue && (
-                  <>
-                    <Field label="Due Payment Date">
-                      <input className={inp()} type="date" value={form["sale.cash.dueDate"]} onChange={set("sale.cash.dueDate")} />
-                    </Field>
-                    <Field label="Due Note (kab dega?)">
-                      <input className={inp()} value={form["sale.cash.dueNote"]} onChange={set("sale.cash.dueNote")} placeholder="e.g. Next month salary ke baad" />
-                    </Field>
-                  </>
-                )}
-              </div>
-            )}
-
-            {isFinance && (
-              <div className="grid sm:grid-cols-2 gap-4 mt-4">
-                {[
-                  { k: "sale.finance.companyName",  label: "Finance Company",    type: "text",   ph: "Bajaj Finance, HDFC..." },
-                  { k: "sale.finance.financeAmount", label: "Finance Amount (₹)", type: "number", ph: "0" },
-                  { k: "sale.finance.emiAmount",     label: "EMI Amount (₹/mo)",  type: "number", ph: "0" },
-                  { k: "sale.finance.emiMonths",     label: "EMI Months",         type: "number", ph: "12" },
-                  { k: "sale.finance.startDate",     label: "EMI Start Date",     type: "date",   ph: "" },
-                ].map(({ k, label, type, ph }) => (
-                  <Field key={k} label={label}>
-                    <input className={inp()} type={type} value={form[k]} onChange={set(k)} placeholder={ph} />
+            {/* Cash fields only — no finance option */}
+            <div className="grid sm:grid-cols-2 gap-4 mt-4">
+              <Field label="Cash Mila (₹)">
+                <input className={inp()} type="number" value={form["sale.cash.amountPaid"]} onChange={set("sale.cash.amountPaid")} placeholder="0" />
+              </Field>
+              <Field label="Due Baaki (₹)">
+                <input className={inp()} type="number" value={form["sale.cash.amountDue"]} onChange={set("sale.cash.amountDue")} placeholder="0" />
+              </Field>
+              {hasDue && (
+                <>
+                  <Field label="Due Payment Date">
+                    <input className={inp()} type="date" value={form["sale.cash.dueDate"]} onChange={set("sale.cash.dueDate")} />
                   </Field>
-                ))}
-              </div>
-            )}
+                  <Field label="Due Note (kab dega?)">
+                    <input className={inp()} value={form["sale.cash.dueNote"]} onChange={set("sale.cash.dueNote")} placeholder="e.g. Next month salary ke baad" />
+                  </Field>
+                </>
+              )}
+            </div>
           </Section>
         </>
       )}
