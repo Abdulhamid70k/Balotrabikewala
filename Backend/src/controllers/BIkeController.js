@@ -1,8 +1,5 @@
 import Bike from "../models/bike.js";
 
-const userFilter = (req) =>
-  req.user.role === "admin" ? {} : { createdBy: req.user._id };
-
 // GET ALL
 export const getBikes = async (req, res) => {
   try {
@@ -25,7 +22,7 @@ export const getBikes = async (req, res) => {
     res.json({
       success: true,
       data: bikes,
-      pagination: {           // ✅ yeh add karo
+      pagination: {
         total,
         page:  Number(page),
         limit: Number(limit),
@@ -36,11 +33,38 @@ export const getBikes = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-// CREATE
+
+// CREATE — with duplicate reg number check
 export const createBike = async (req, res) => {
   try {
+    const { registrationNumber } = req.body;
+
+    // ✅ Duplicate check — only if reg number provided
+    if (registrationNumber && registrationNumber.trim()) {
+      const regNo = registrationNumber.trim().toUpperCase();
+      const existing = await Bike.findOne({
+        registrationNumber: regNo,
+      });
+
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: `Yeh registration number (${regNo}) pehle se stock mein hai — "${existing.bikeName}"`,
+          duplicate: true,
+          existingBike: {
+            _id:    existing._id,
+            bikeName: existing.bikeName,
+            status: existing.status,
+            registrationNumber: existing.registrationNumber,
+          },
+        });
+      }
+    }
+
     const bike = await Bike.create({
       ...req.body,
+      // Normalize reg number to uppercase before saving
+      ...(registrationNumber && { registrationNumber: registrationNumber.trim().toUpperCase() }),
       createdBy: req.user._id,
     });
 
@@ -50,65 +74,63 @@ export const createBike = async (req, res) => {
   }
 };
 
+// GET ONE
 export const getBike = async (req, res) => {
   try {
     const bike = await Bike.findById(req.params.id);
-
-    if (!bike) {
-      return res.status(404).json({
-        success: false,
-        message: "Bike nahi mili",
-      });
-    }
-
-    res.json({
-      success: true,
-      data: bike,
-    });
+    if (!bike) return res.status(404).json({ success: false, message: "Bike nahi mili" });
+    res.json({ success: true, data: bike });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-
+// UPDATE — skip duplicate check for same bike (edit mode)
 export const updateBike = async (req, res) => {
   try {
+    const { registrationNumber } = req.body;
+
+    // ✅ Duplicate check on update — but skip if it's the same bike
+    if (registrationNumber && registrationNumber.trim()) {
+      const regNo = registrationNumber.trim().toUpperCase();
+      const existing = await Bike.findOne({
+        registrationNumber: regNo,
+        _id: { $ne: req.params.id }, // exclude current bike
+      });
+
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: `Yeh registration number (${regNo}) pehle se "${existing.bikeName}" ke liye registered hai`,
+          duplicate: true,
+        });
+      }
+
+      req.body.registrationNumber = regNo; // normalize
+    }
+
     const bike = await Bike.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true, runValidators: true }
     );
 
-    if (!bike) {
-      return res.status(404).json({
-        success: false,
-        message: "Bike nahi mili",
-      });
-    }
+    if (!bike) return res.status(404).json({ success: false, message: "Bike nahi mili" });
 
-    res.json({
-      success: true,
-      message: "Bike update ho gayi",
-      data: bike,
-    });
+    res.json({ success: true, message: "Bike update ho gayi", data: bike });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
+// STATS
 export const getStats = async (req, res) => {
   try {
     const statusBreakdown = await Bike.aggregate([
       {
         $group: {
           _id: "$status",
-          count: { $sum: 1 },
+          count:            { $sum: 1 },
           totalBuyPrice:    { $sum: "$purchase.buyPrice" },
           totalSellPrice:   { $sum: "$sale.sellPrice" },
           totalServiceCost: { $sum: "$service.totalCost" },
@@ -132,9 +154,9 @@ export const getStats = async (req, res) => {
             $sum: {
               $subtract: [
                 "$sale.sellPrice",
-                { $add: ["$purchase.buyPrice", "$service.totalCost", "$rc.charge"] }
-              ]
-            }
+                { $add: ["$purchase.buyPrice", "$service.totalCost", "$rc.charge"] },
+              ],
+            },
           },
         },
       },
@@ -142,26 +164,19 @@ export const getStats = async (req, res) => {
       { $limit: 12 },
     ]);
 
-    res.json({
-      success: true,
-      data: {
-        statusBreakdown,  // ✅ Dashboard yeh expect karta hai
-        monthly,          // ✅ Monthly chart ke liye
-      },
-    });
+    res.json({ success: true, data: { statusBreakdown, monthly } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-
+// REPORT
 export const getReport = async (req, res) => {
   try {
     const { type, from, to, year, month } = req.query;
 
     let filter = {};
 
-    // Date range filter helper
     const dateRange = (field) => {
       const d = {};
       if (from) d.$gte = new Date(from);
@@ -170,30 +185,24 @@ export const getReport = async (req, res) => {
     };
 
     switch (type) {
-
       case "stock":
         filter.status = "in_stock";
         dateRange("purchase.buyDate");
         break;
-
       case "purchase":
         dateRange("purchase.buyDate");
         break;
-
       case "sale":
         filter.status = "sold";
         dateRange("sale.sellDate");
         break;
-
       case "due":
         filter.status = "sold";
         filter["sale.cash.amountDue"] = { $gt: 0 };
         break;
-
       case "pending":
         filter.status = "pending_arrival";
         break;
-
       case "monthly": {
         filter.status = "sold";
         const y = parseInt(year) || new Date().getFullYear();
@@ -201,11 +210,10 @@ export const getReport = async (req, res) => {
         const endMonth   = month ? parseInt(month)     : 12;
         filter["sale.sellDate"] = {
           $gte: new Date(y, startMonth, 1),
-          $lte: new Date(y, endMonth,   0, 23, 59, 59),
+          $lte: new Date(y, endMonth, 0, 23, 59, 59),
         };
         break;
       }
-
       case "yearly": {
         filter.status = "sold";
         const y = parseInt(year) || new Date().getFullYear();
@@ -215,41 +223,25 @@ export const getReport = async (req, res) => {
         };
         break;
       }
-
       default:
         return res.status(400).json({ success: false, message: "Invalid report type" });
     }
 
     const data = await Bike.find(filter).sort({ createdAt: -1 });
     res.json({ success: true, data });
-
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-
+// DELETE
 export const deleteBike = async (req, res) => {
   try {
     const bike = await Bike.findById(req.params.id);
-
-    if (!bike) {
-      return res.status(404).json({
-        success: false,
-        message: "Bike nahi mili",
-      });
-    }
-
+    if (!bike) return res.status(404).json({ success: false, message: "Bike nahi mili" });
     await bike.deleteOne();
-
-    res.json({
-      success: true,
-      message: "Bike delete ho gayi",
-    });
+    res.json({ success: true, message: "Bike delete ho gayi" });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
