@@ -1,5 +1,5 @@
 import express from "express";
-import { getBikes, getBike, createBike, updateBike, deleteBike, getStats, getReport } from "../controllers/Temp.js"; // ✅ fixed: was BIkeController.js
+import { getBikes, getBike, createBike, updateBike, deleteBike, getStats, getReport } from "../controllers/BikeController.js"; // ✅ fixed: was BIkeController.js
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
