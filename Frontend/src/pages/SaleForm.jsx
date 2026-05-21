@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Save, X, User, Phone, MapPin, Hash, IndianRupee } from "lucide-react";
+import { Save, X, User, Phone, MapPin, Hash, IndianRupee, Plus, Trash2 } from "lucide-react";
 import {
   fetchBike, updateBike,
   selectCurrentBike, selectBikeLoading,
@@ -55,15 +55,23 @@ export default function SaleForm() {
   const loading  = useSelector(selectBikeLoading);
   const bike     = useSelector(selectCurrentBike);
 
-  const [sale,   setSale]   = useState(INIT_SALE);
-  const [errors, setErrors] = useState({});
+  const [sale,     setSale]     = useState(INIT_SALE);
+  const [errors,   setErrors]   = useState({});
+
+  // Service items state
+  const [svcItems, setSvcItems] = useState([]);
+  const [svcName,  setSvcName]  = useState("");
+  const [svcCost,  setSvcCost]  = useState("");
+
+  // RC transfer state — sirf Yes/No
+  const [rcTransferred, setRcTransferred] = useState(false);
 
   useEffect(() => {
     dispatch(fetchBike(id));
     return () => dispatch(clearCurrentBike());
   }, [id, dispatch]);
 
-  // FIX: Agar bike already sold hai toh detail page pe bhejo
+  // Already sold bike → detail page pe redirect
   useEffect(() => {
     if (bike && bike.status === "sold") {
       toast.error("Ye bike pehle se bech di gayi hai!");
@@ -86,11 +94,20 @@ export default function SaleForm() {
     if (errors[path]) setErrors((p) => { const n = { ...p }; delete n[path]; return n; });
   };
 
+  // Service item helpers
+  const addSvc = () => {
+    if (!svcName.trim()) return;
+    setSvcItems((prev) => [...prev, { name: svcName.trim(), cost: Number(svcCost) || 0 }]);
+    setSvcName(""); setSvcCost("");
+  };
+  const removeSvc = (i) => setSvcItems((prev) => prev.filter((_, idx) => idx !== i));
+  const svcTotal = svcItems.reduce((s, i) => s + i.cost, 0);
+
   const validate = () => {
     const e = {};
-    if (!sale.sellPrice)          e.sellPrice         = "Sell price zaroori hai";
-    if (!sale.customer.name)      e["customer.name"]  = "Customer naam zaroori hai";
-    if (!sale.customer.mobile)    e["customer.mobile"]= "Mobile number zaroori hai";
+    if (!sale.sellPrice)       e.sellPrice         = "Sell price zaroori hai";
+    if (!sale.customer.name)   e["customer.name"]  = "Customer naam zaroori hai";
+    if (!sale.customer.mobile) e["customer.mobile"]= "Mobile number zaroori hai";
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -101,6 +118,15 @@ export default function SaleForm() {
 
     const payload = {
       status: "sold",
+      // Service charges sale pe save honge
+      service: {
+        items:     svcItems,
+        totalCost: svcTotal,
+      },
+      // RC transfer — sirf boolean
+      rc: {
+        transferred: rcTransferred,
+      },
       sale: {
         voucherNumber: sale.voucherNumber,
         sellPrice:     Number(sale.sellPrice),
@@ -126,14 +152,12 @@ export default function SaleForm() {
     }
   };
 
-  // Bike load hone tak ya redirect ke waqt spinner dikhao
   if (loading || !bike || bike.status === "sold") return <Spinner center size="lg" />;
 
   const hasDue = Number(sale.cash.amountDue) > 0;
   const profit = Number(sale.sellPrice || 0)
-    - (bike.purchase?.buyPrice   || 0)
-    - (bike.service?.totalCost   || 0)
-    - (bike.rc?.charge           || 0);
+    - (bike.purchase?.buyPrice || 0)
+    - svcTotal;
 
   return (
     <div className="max-w-2xl space-y-4 pb-10">
@@ -165,7 +189,7 @@ export default function SaleForm() {
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
-        {/* Customer Details */}
+        {/* ── Customer Details ──────────────────────────────── */}
         <Section title="👤 Customer Details">
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Customer Name" required error={errors["customer.name"]} icon={User}>
@@ -190,7 +214,72 @@ export default function SaleForm() {
           </div>
         </Section>
 
-        {/* Sale Details — cash only, no finance */}
+        {/* ── Service Details ────────────────────────────────── */}
+        <Section title="🔧 Service Details">
+          <p className="text-xs text-slate-400 -mt-2 mb-3">Sale se pehle ki gayi service yahan daalo</p>
+
+          <div className="flex gap-2 mb-3">
+            <input
+              className={`${inp()} flex-[2]`}
+              value={svcName}
+              onChange={(e) => setSvcName(e.target.value)}
+              placeholder="Item name (Engine oil, Tyre...)"
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSvc())}
+            />
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">₹</span>
+              <input className={`${inp()} pl-7`} type="number" value={svcCost} onChange={(e) => setSvcCost(e.target.value)} placeholder="Cost" />
+            </div>
+            <button type="button" onClick={addSvc}
+              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-sm transition-colors">
+              <Plus size={16} />
+            </button>
+          </div>
+
+          {svcItems.length > 0 && (
+            <div className="border border-slate-100 rounded-xl overflow-hidden mb-3">
+              {svcItems.map((item, i) => (
+                <div key={i} className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100 last:border-0 text-sm">
+                  <span className="text-slate-700">{item.name}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-slate-500">₹{item.cost.toLocaleString("en-IN")}</span>
+                    <button type="button" onClick={() => removeSvc(i)} className="text-red-400 hover:text-red-600 p-1">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <div className="px-4 py-2 bg-orange-50 flex justify-between items-center">
+                <span className="text-xs font-bold text-orange-600 uppercase tracking-wide">Total Service</span>
+                <span className="font-bold text-orange-700">₹{svcTotal.toLocaleString("en-IN")}</span>
+              </div>
+            </div>
+          )}
+        </Section>
+
+        {/* ── RC Transfer ─────────────────────────────────────── */}
+        <Section title="📄 RC Transfer">
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={rcTransferred}
+                onChange={(e) => setRcTransferred(e.target.checked)}
+                className="w-4 h-4 accent-orange-500"
+              />
+              <span className="text-sm font-medium text-slate-700">RC Transfer ki gayi</span>
+            </label>
+            <span className={`px-3 py-1 rounded-lg text-xs font-bold ${
+              rcTransferred
+                ? "bg-green-100 text-green-700"
+                : "bg-slate-100 text-slate-500"
+            }`}>
+              {rcTransferred ? "✅ Yes" : "❌ No"}
+            </span>
+          </div>
+        </Section>
+
+        {/* ── Sale Details ───────────────────────────────────── */}
         <Section title="🤝 Sale Details">
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Voucher Number" icon={Hash}>
@@ -214,7 +303,7 @@ export default function SaleForm() {
             </Field>
           </div>
 
-          {/* Cash fields only */}
+          {/* Cash fields */}
           <div className="grid sm:grid-cols-2 gap-4 mt-4">
             <Field label="Cash Mila (₹)">
               <input className={inp()} type="number"
@@ -246,7 +335,7 @@ export default function SaleForm() {
           </div>
         </Section>
 
-        {/* Submit */}
+        {/* ── Submit ────────────────────────────────────────── */}
         <div className="flex gap-3 justify-end pt-1">
           <button type="button" onClick={() => navigate(-1)}
             className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold transition-colors">
