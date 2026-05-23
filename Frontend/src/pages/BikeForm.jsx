@@ -8,6 +8,7 @@ import {
 } from "../features/bikes/bikeSlice";
 import { Spinner } from "../components/UI";
 import BikeNameInput from "../components/BikeNameInput";
+import DateInput from "../components/DateInput";
 import api from "../services/api";
 import toast from "react-hot-toast";
 
@@ -89,7 +90,7 @@ export default function BikeForm() {
 
   const [form,        setForm]        = useState(INIT);
   const [errors,      setErrors]      = useState({});
-  const [dupWarning,  setDupWarning]  = useState(null); // { message, existingId }
+  const [dupWarning,  setDupWarning]  = useState(null);
   const [dupChecking, setDupChecking] = useState(false);
   const debounceRef = useRef(null);
 
@@ -101,16 +102,15 @@ export default function BikeForm() {
   useEffect(() => {
     if (isEdit && current) {
       const flat = flatten(current);
+      // Date already yyyy-mm-dd format mein hogi DB se — DateInput khud handle karega
       if (flat["purchase.buyDate"]) flat["purchase.buyDate"] = new Date(flat["purchase.buyDate"]).toISOString().split("T")[0];
       setForm((p) => ({ ...p, ...flat }));
     }
   }, [current, isEdit]);
 
-  // Registration number real-time duplicate check (sirf nai entry pe)
   const checkDuplicate = (regNo) => {
-    if (isEdit) return; // edit mein check nahi
+    if (isEdit) return;
     if (!regNo || regNo.trim().length < 3) { setDupWarning(null); return; }
-
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       setDupChecking(true);
@@ -121,24 +121,26 @@ export default function BikeForm() {
             b.registrationNumber?.toUpperCase() === regNo.trim().toUpperCase() &&
             ["in_stock", "pending_arrival"].includes(b.status)
         );
-        if (match) {
-          setDupWarning({ message: `"${match.bikeName}" pehle se stock mein hai!`, existingId: match._id });
-        } else {
-          setDupWarning(null);
-        }
-      } catch {
-        setDupWarning(null);
-      } finally {
-        setDupChecking(false);
-      }
+        setDupWarning(match ? { message: `"${match.bikeName}" pehle se stock mein hai!`, existingId: match._id } : null);
+      } catch { setDupWarning(null); }
+      finally  { setDupChecking(false); }
     }, 600);
   };
 
   const set = (k) => (e) => {
-    const val = e.target.value;
+    let val = e.target.value;
+    // Reg number auto-uppercase
+    if (k === "registrationNumber") {
+      val = val.toUpperCase();
+      checkDuplicate(val);
+    }
     setForm((p) => ({ ...p, [k]: val }));
     if (errors[k]) setErrors((p) => { const n = { ...p }; delete n[k]; return n; });
-    if (k === "registrationNumber") checkDuplicate(val);
+  };
+
+  // DateInput ke liye alag setter (value directly aata hai, event nahi)
+  const setDate = (k) => (isoVal) => {
+    setForm((p) => ({ ...p, [k]: isoVal }));
   };
 
   const validate = () => {
@@ -162,12 +164,7 @@ export default function BikeForm() {
       dispatch(clearBikeMessages());
       navigate("/stock");
     } else {
-      // Backend se duplicate error aaye toh bhi handle karo
-      if (result.payload?.includes("pehle se stock")) {
-        toast.error(result.payload);
-      } else {
-        toast.error(result.payload || "Kuch error aaya");
-      }
+      toast.error(result.payload || "Kuch error aaya");
     }
   };
 
@@ -205,11 +202,10 @@ export default function BikeForm() {
               <input className={inp()} value={form.color} onChange={set("color")} placeholder="Black, Red..." />
             </Field>
 
-            {/* Registration Number with duplicate check */}
             <Field label="Reg. Number" error={dupWarning ? " " : ""}>
               <div className="relative">
                 <input
-                  className={`${inp(!!dupWarning)} ${dupWarning ? "border-red-400 bg-red-50" : ""}`}
+                  className={`${inp(!!dupWarning)} uppercase ${dupWarning ? "border-red-400 bg-red-50" : ""}`}
                   value={form.registrationNumber}
                   onChange={set("registrationNumber")}
                   placeholder="RJ14AB1234"
@@ -223,7 +219,6 @@ export default function BikeForm() {
             </Field>
           </div>
 
-          {/* Duplicate warning banner */}
           {dupWarning && (
             <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
               <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
@@ -231,10 +226,7 @@ export default function BikeForm() {
                 <p className="text-sm font-semibold text-red-700">Duplicate Entry!</p>
                 <p className="text-xs text-red-500 mt-0.5">{dupWarning.message}</p>
               </div>
-              <Link
-                to={`/stock/${dupWarning.existingId}`}
-                className="text-xs font-bold text-red-600 underline whitespace-nowrap hover:text-red-800"
-              >
+              <Link to={`/stock/${dupWarning.existingId}`} className="text-xs font-bold text-red-600 underline whitespace-nowrap hover:text-red-800">
                 Dekho →
               </Link>
             </div>
@@ -264,7 +256,11 @@ export default function BikeForm() {
             <input className={inp()} value={form["purchase.buyFrom"]} onChange={set("purchase.buyFrom")} placeholder="Seller / Dealer" />
           </Field>
           <Field label="Purchase Date">
-            <input className={inp()} type="date" value={form["purchase.buyDate"]} onChange={set("purchase.buyDate")} />
+            <DateInput
+              value={form["purchase.buyDate"]}
+              onChange={setDate("purchase.buyDate")}
+              className={inp()}
+            />
           </Field>
           <Field label="Buy Price (₹)" required error={errors["purchase.buyPrice"]}>
             <input className={inp(!!errors["purchase.buyPrice"])} type="number" value={form["purchase.buyPrice"]} onChange={set("purchase.buyPrice")} placeholder="0" />

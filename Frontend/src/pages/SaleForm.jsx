@@ -8,6 +8,7 @@ import {
   clearBikeMessages, clearCurrentBike,
 } from "../features/bikes/bikeSlice";
 import { Spinner } from "../components/UI";
+import DateInput from "../components/DateInput";
 import toast from "react-hot-toast";
 
 const inp = (err = false) =>
@@ -57,13 +58,9 @@ export default function SaleForm() {
 
   const [sale,     setSale]     = useState(INIT_SALE);
   const [errors,   setErrors]   = useState({});
-
-  // Service items state
   const [svcItems, setSvcItems] = useState([]);
   const [svcName,  setSvcName]  = useState("");
   const [svcCost,  setSvcCost]  = useState("");
-
-  // RC transfer state — sirf Yes/No
   const [rcTransferred, setRcTransferred] = useState(false);
 
   useEffect(() => {
@@ -71,7 +68,6 @@ export default function SaleForm() {
     return () => dispatch(clearCurrentBike());
   }, [id, dispatch]);
 
-  // Already sold bike → detail page pe redirect
   useEffect(() => {
     if (bike && bike.status === "sold") {
       toast.error("Ye bike pehle se bech di gayi hai!");
@@ -94,7 +90,6 @@ export default function SaleForm() {
     if (errors[path]) setErrors((p) => { const n = { ...p }; delete n[path]; return n; });
   };
 
-  // Service item helpers
   const addSvc = () => {
     if (!svcName.trim()) return;
     setSvcItems((prev) => [...prev, { name: svcName.trim(), cost: Number(svcCost) || 0 }]);
@@ -118,15 +113,8 @@ export default function SaleForm() {
 
     const payload = {
       status: "sold",
-      // Service charges sale pe save honge
-      service: {
-        items:     svcItems,
-        totalCost: svcTotal,
-      },
-      // RC transfer — sirf boolean
-      rc: {
-        transferred: rcTransferred,
-      },
+      service: { items: svcItems, totalCost: svcTotal },
+      rc: { transferred: rcTransferred },
       sale: {
         voucherNumber: sale.voucherNumber,
         sellPrice:     Number(sale.sellPrice),
@@ -155,9 +143,7 @@ export default function SaleForm() {
   if (loading || !bike || bike.status === "sold") return <Spinner center size="lg" />;
 
   const hasDue = Number(sale.cash.amountDue) > 0;
-  const profit = Number(sale.sellPrice || 0)
-    - (bike.purchase?.buyPrice || 0)
-    - svcTotal;
+  const profit = Number(sale.sellPrice || 0) - (bike.purchase?.buyPrice || 0) - svcTotal;
 
   return (
     <div className="max-w-2xl space-y-4 pb-10">
@@ -214,18 +200,14 @@ export default function SaleForm() {
           </div>
         </Section>
 
-        {/* ── Service Details ────────────────────────────────── */}
+        {/* ── Service Details ───────────────────────────────── */}
         <Section title="🔧 Service Details">
           <p className="text-xs text-slate-400 -mt-2 mb-3">Sale se pehle ki gayi service yahan daalo</p>
-
           <div className="flex gap-2 mb-3">
-            <input
-              className={`${inp()} flex-[2]`}
-              value={svcName}
+            <input className={`${inp()} flex-[2]`} value={svcName}
               onChange={(e) => setSvcName(e.target.value)}
               placeholder="Item name (Engine oil, Tyre...)"
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSvc())}
-            />
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSvc())} />
             <div className="relative flex-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">₹</span>
               <input className={`${inp()} pl-7`} type="number" value={svcCost} onChange={(e) => setSvcCost(e.target.value)} placeholder="Cost" />
@@ -257,53 +239,44 @@ export default function SaleForm() {
           )}
         </Section>
 
-        {/* ── RC Transfer ─────────────────────────────────────── */}
+        {/* ── RC Transfer ───────────────────────────────────── */}
         <Section title="📄 RC Transfer">
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={rcTransferred}
+              <input type="checkbox" checked={rcTransferred}
                 onChange={(e) => setRcTransferred(e.target.checked)}
-                className="w-4 h-4 accent-orange-500"
-              />
+                className="w-4 h-4 accent-orange-500" />
               <span className="text-sm font-medium text-slate-700">RC Transfer ki gayi</span>
             </label>
-            <span className={`px-3 py-1 rounded-lg text-xs font-bold ${
-              rcTransferred
-                ? "bg-green-100 text-green-700"
-                : "bg-slate-100 text-slate-500"
-            }`}>
+            <span className={`px-3 py-1 rounded-lg text-xs font-bold ${rcTransferred ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
               {rcTransferred ? "✅ Yes" : "❌ No"}
             </span>
           </div>
         </Section>
 
-        {/* ── Sale Details ───────────────────────────────────── */}
+        {/* ── Sale Details ──────────────────────────────────── */}
         <Section title="🤝 Sale Details">
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Voucher Number" icon={Hash}>
-              <input className={inp()}
-                value={sale.voucherNumber}
+              <input className={inp()} value={sale.voucherNumber}
                 onChange={(e) => setField("voucherNumber", e.target.value)}
                 placeholder="SAL-001" />
             </Field>
             <Field label="Sell Price (₹)" required error={errors.sellPrice} icon={IndianRupee}>
-              <input className={inp(!!errors.sellPrice)}
-                type="number"
+              <input className={inp(!!errors.sellPrice)} type="number"
                 value={sale.sellPrice}
                 onChange={(e) => setField("sellPrice", e.target.value)}
                 placeholder="0" />
             </Field>
             <Field label="Sale Date">
-              <input className={inp()}
-                type="date"
+              <DateInput
                 value={sale.sellDate}
-                onChange={(e) => setField("sellDate", e.target.value)} />
+                onChange={(iso) => setField("sellDate", iso)}
+                className={inp()}
+              />
             </Field>
           </div>
 
-          {/* Cash fields */}
           <div className="grid sm:grid-cols-2 gap-4 mt-4">
             <Field label="Cash Mila (₹)">
               <input className={inp()} type="number"
@@ -320,13 +293,14 @@ export default function SaleForm() {
             {hasDue && (
               <>
                 <Field label="Due Payment Date">
-                  <input className={inp()} type="date"
+                  <DateInput
                     value={sale.cash.dueDate}
-                    onChange={(e) => setField("cash.dueDate", e.target.value)} />
+                    onChange={(iso) => setField("cash.dueDate", iso)}
+                    className={inp()}
+                  />
                 </Field>
                 <Field label="Due Note (kab dega?)">
-                  <input className={inp()}
-                    value={sale.cash.dueNote}
+                  <input className={inp()} value={sale.cash.dueNote}
                     onChange={(e) => setField("cash.dueNote", e.target.value)}
                     placeholder="e.g. Next month salary ke baad" />
                 </Field>

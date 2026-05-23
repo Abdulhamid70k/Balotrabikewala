@@ -61,7 +61,7 @@ export const COLUMNS = {
   stock: [
     { label: "Bike Name",    fn: (b) => b.bikeName },
     { label: "Make",         fn: (b) => b.bikeMake || "" },
-    { label: "Year",         fn: (b) => b.year || "" },
+    { label: "Year",         fn: (b) => String(b.year || "") },       // ✅ String — no ₹
     { label: "Color",        fn: (b) => b.color || "" },
     { label: "Reg No.",      fn: (b) => b.registrationNumber || "" },
     { label: "Buy From",     fn: (b) => b.purchase?.buyFrom || "" },
@@ -72,7 +72,7 @@ export const COLUMNS = {
     { label: "Voucher No.",  fn: (b) => b.purchase?.voucherNumber || "" },
     { label: "Bike Name",    fn: (b) => b.bikeName },
     { label: "Make",         fn: (b) => b.bikeMake || "" },
-    { label: "Year",         fn: (b) => b.year || "" },
+    { label: "Year",         fn: (b) => String(b.year || "") },       // ✅ String — no ₹
     { label: "Reg No.",      fn: (b) => b.registrationNumber || "" },
     { label: "Buy From",     fn: (b) => b.purchase?.buyFrom || "" },
     { label: "Buy Date",     fn: (b) => b.purchase?.buyDate ? new Date(b.purchase.buyDate).toLocaleDateString("en-IN") : "—" },
@@ -85,20 +85,19 @@ export const COLUMNS = {
     { label: "Sale Voucher", fn: (b) => b.sale?.voucherNumber || "" },
     { label: "Bike Name",    fn: (b) => b.bikeName },
     { label: "Make",         fn: (b) => b.bikeMake || "" },
-    { label: "Year",         fn: (b) => b.year || "" },
-    { label: "Reg No.",      fn: (b) => b.registrationNumber || "" }, // ✅ deduplicated
+    { label: "Year",         fn: (b) => String(b.year || "") },       // ✅ String — no ₹
+    { label: "Reg No.",      fn: (b) => b.registrationNumber || "" },
     { label: "Customer",     fn: (b) => b.sale?.customer?.name || "" },
     { label: "Mobile",       fn: (b) => b.sale?.customer?.mobile || "" },
     { label: "Sell Date",    fn: (b) => b.sale?.sellDate ? new Date(b.sale.sellDate).toLocaleDateString("en-IN") : "—" },
     { label: "Buy Price",    fn: (b) => b.purchase?.buyPrice || 0 },
     { label: "Sell Price",   fn: (b) => b.sale?.sellPrice || 0 },
     { label: "Profit",       fn: (b) => (b.sale?.sellPrice||0)-(b.purchase?.buyPrice||0)-(b.service?.totalCost||0)-(b.rc?.charge||0) },
-    { label: "Payment",      fn: (b) => b.sale?.paymentType === "finance" ? "Finance" : "Cash" },
     { label: "Due Amount",   fn: (b) => b.sale?.cash?.amountDue || 0 },
   ],
   due: [
     { label: "Bike Name",    fn: (b) => b.bikeName },
-    { label: "Reg No.",      fn: (b) => b.registrationNumber || "" }, // ✅ deduplicated
+    { label: "Reg No.",      fn: (b) => b.registrationNumber || "" },
     { label: "Customer",     fn: (b) => b.sale?.customer?.name || "" },
     { label: "Mobile",       fn: (b) => b.sale?.customer?.mobile || "" },
     { label: "Address",      fn: (b) => b.sale?.customer?.address || "" },
@@ -112,7 +111,7 @@ export const COLUMNS = {
   pending: [
     { label: "Bike Name",    fn: (b) => b.bikeName },
     { label: "Make",         fn: (b) => b.bikeMake || "" },
-    { label: "Year",         fn: (b) => b.year || "" },
+    { label: "Year",         fn: (b) => String(b.year || "") },       // ✅ String — no ₹
     { label: "Buy From",     fn: (b) => b.purchase?.buyFrom || "" },
     { label: "Buy Date",     fn: (b) => b.purchase?.buyDate ? new Date(b.purchase.buyDate).toLocaleDateString("en-IN") : "—" },
     { label: "Buy Price",    fn: (b) => b.purchase?.buyPrice || 0 },
@@ -120,7 +119,7 @@ export const COLUMNS = {
   monthly: [
     { label: "Voucher",      fn: (b) => b.sale?.voucherNumber || "" },
     { label: "Bike Name",    fn: (b) => b.bikeName },
-    { label: "Reg No.",      fn: (b) => b.registrationNumber || "" }, // ✅ deduplicated
+    { label: "Reg No.",      fn: (b) => b.registrationNumber || "" },
     { label: "Customer",     fn: (b) => b.sale?.customer?.name || "" },
     { label: "Mobile",       fn: (b) => b.sale?.customer?.mobile || "" },
     { label: "Sell Date",    fn: (b) => b.sale?.sellDate ? new Date(b.sale.sellDate).toLocaleDateString("en-IN") : "—" },
@@ -133,7 +132,7 @@ export const COLUMNS = {
     { label: "Month",        fn: (b) => { const d = b.sale?.sellDate ? new Date(b.sale.sellDate) : null; return d ? `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]} ${d.getFullYear()}` : "—"; } },
     { label: "Voucher",      fn: (b) => b.sale?.voucherNumber || "" },
     { label: "Bike Name",    fn: (b) => b.bikeName },
-    { label: "Reg No.",      fn: (b) => b.registrationNumber || "" }, // ✅ deduplicated
+    { label: "Reg No.",      fn: (b) => b.registrationNumber || "" },
     { label: "Customer",     fn: (b) => b.sale?.customer?.name || "" },
     { label: "Sell Price",   fn: (b) => b.sale?.sellPrice || 0 },
     { label: "Buy Price",    fn: (b) => b.purchase?.buyPrice || 0 },
