@@ -10,12 +10,13 @@ import { selectIsAdmin } from "../features/auth/authSlice";
 import { StatusBadge, Spinner, EmptyState, ConfirmDialog } from "../components/UI";
 import toast from "react-hot-toast";
 
-const fmt  = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
+const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
 
-// Default: only show in_stock and pending — sold bikes sirf Sales report mein
+// Sold bikes bhi dikhte hain tab tak edit ho sake
 const STATUS_OPTS = [
   { value: "in_stock",        label: "Stock Mein" },
   { value: "pending_arrival", label: "Aani Baaki" },
+  { value: "sold",            label: "Bech Di" },
 ];
 
 export default function StockList() {
@@ -24,7 +25,7 @@ export default function StockList() {
   const loading    = useSelector(selectBikeLoading);
   const pagination = useSelector(selectPagination);
   const isAdmin    = useSelector(selectIsAdmin);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const [search,   setSearch]   = useState(searchParams.get("search") || "");
   const [status,   setStatus]   = useState(searchParams.get("status") || "in_stock");
@@ -34,9 +35,7 @@ export default function StockList() {
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(() => {
-    const p = { page, limit: 20, sortBy };
-    // Never show sold bikes in stock list
-    p.status = status || "in_stock";
+    const p = { page, limit: 20, sortBy, status };
     if (search) p.search = search;
     dispatch(fetchBikes(p));
   }, [dispatch, page, sortBy, status, search]);
@@ -57,6 +56,7 @@ export default function StockList() {
 
   return (
     <div className="space-y-4">
+
       {/* Toolbar */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[180px]">
@@ -100,7 +100,7 @@ export default function StockList() {
       {loading ? <Spinner center size="lg" /> : bikes.length === 0 ? (
         <EmptyState
           icon={<Bike size={40} className="text-slate-200" />}
-          title={status === "pending_arrival" ? "Koi pending bike nahi" : "Stock empty hai"}
+          title={status === "pending_arrival" ? "Koi pending bike nahi" : status === "sold" ? "Koi sold bike nahi" : "Stock empty hai"}
           message="Nai bike add karo"
           action={
             <Link to="/stock/add" className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
@@ -114,7 +114,7 @@ export default function StockList() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
-                  {["Bike", "Reg. No.", "Year", "Status", "Buy Price", "Service", "Actions"].map((h) => (
+                  {["Bike", "Reg. No.", "Year", "Status", "Buy Price", status === "sold" ? "Sell Price" : "Service", "Actions"].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -131,16 +131,31 @@ export default function StockList() {
                     <td className="px-4 py-3 text-slate-500 text-xs">{b.year || "—"}</td>
                     <td className="px-4 py-3"><StatusBadge status={b.status} /></td>
                     <td className="px-4 py-3 font-semibold text-slate-700">{fmt(b.purchase?.buyPrice)}</td>
-                    <td className="px-4 py-3 text-slate-500">{fmt(b.service?.totalCost)}</td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {status === "sold"
+                        ? <span className="font-semibold text-green-700">{fmt(b.sale?.sellPrice)}</span>
+                        : fmt(b.service?.totalCost)
+                      }
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        {/* SELL — most prominent, only for in_stock */}
+
+                        {/* In-stock: Sell button */}
                         {b.status === "in_stock" && (
                           <Link to={`/stock/${b._id}/sell`}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-bold transition-colors">
                             <ShoppingCart size={12} /> Sell
                           </Link>
                         )}
+
+                        {/* Sold: Edit Sale button */}
+                        {b.status === "sold" && (
+                          <Link to={`/stock/${b._id}/sell`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-colors">
+                            <Pencil size={12} /> Edit Sale
+                          </Link>
+                        )}
+
                         <Link to={`/stock/${b._id}`}
                           className="p-1.5 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors" title="View">
                           <Eye size={14} />

@@ -50,54 +50,57 @@ const EMPTY_SALE = {
 };
 
 export default function SaleForm() {
-  const { id }    = useParams();
-  const dispatch  = useDispatch();
-  const navigate  = useNavigate();
-  const loading   = useSelector(selectBikeLoading);
-  const bike      = useSelector(selectCurrentBike);
+  const { id }   = useParams();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const loading  = useSelector(selectBikeLoading);
+  const bike     = useSelector(selectCurrentBike);
 
-  const [sale,         setSale]         = useState(EMPTY_SALE);
-  const [errors,       setErrors]       = useState({});
-  const [svcItems,     setSvcItems]     = useState([]);
-  const [svcName,      setSvcName]      = useState("");
-  const [svcCost,      setSvcCost]      = useState("");
+  const [sale,          setSale]          = useState(EMPTY_SALE);
+  const [errors,        setErrors]        = useState({});
+  const [svcItems,      setSvcItems]      = useState([]);
+  const [svcName,       setSvcName]       = useState("");
+  const [svcCost,       setSvcCost]       = useState("");
   const [rcTransferred, setRcTransferred] = useState(false);
-
-  // isEdit = bike already sold hai
-  const isEdit = bike?.status === "sold";
+  const [dataLoaded,    setDataLoaded]    = useState(false);
 
   useEffect(() => {
     dispatch(fetchBike(id));
     return () => dispatch(clearCurrentBike());
   }, [id, dispatch]);
 
-  // Agar bike sold hai toh existing data pre-fill karo
+  // Bike load hone ke baad data fill karo — sold ho ya na ho
   useEffect(() => {
-    if (!bike) return;
+    if (!bike || dataLoaded) return;
+    setDataLoaded(true);
 
+    // Sold bike ka data pre-fill karo editing ke liye
     if (bike.status === "sold") {
-      // Pre-fill existing sale data for editing
       const s = bike.sale || {};
       setSale({
         voucherNumber: s.voucherNumber || "",
         sellPrice:     s.sellPrice     || "",
-        sellDate:      s.sellDate ? new Date(s.sellDate).toISOString().split("T")[0] : "",
+        sellDate:      s.sellDate
+          ? new Date(s.sellDate).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
         customer: {
           name:    s.customer?.name    || "",
           mobile:  s.customer?.mobile  || "",
           address: s.customer?.address || "",
         },
         cash: {
-          amountPaid: s.cash?.amountPaid || "",
-          amountDue:  s.cash?.amountDue  || "",
-          dueDate:    s.cash?.dueDate ? new Date(s.cash.dueDate).toISOString().split("T")[0] : "",
-          dueNote:    s.cash?.dueNote    || "",
+          amountPaid: s.cash?.amountPaid != null ? String(s.cash.amountPaid) : "",
+          amountDue:  s.cash?.amountDue  != null ? String(s.cash.amountDue)  : "",
+          dueDate:    s.cash?.dueDate
+            ? new Date(s.cash.dueDate).toISOString().split("T")[0]
+            : "",
+          dueNote:    s.cash?.dueNote || "",
         },
       });
       setSvcItems(bike.service?.items || []);
       setRcTransferred(bike.rc?.transferred || false);
     }
-  }, [bike]);
+  }, [bike, dataLoaded]);
 
   const setField = (path, value) => {
     setSale((prev) => {
@@ -156,29 +159,31 @@ export default function SaleForm() {
 
     const result = await dispatch(updateBike({ id, formData: payload }));
     if (!result.error) {
+      const isEdit = bike?.status === "sold";
       toast.success(isEdit ? "Sale update ho gayi! ✅" : "Sale entry ho gayi! 🎉");
       dispatch(clearBikeMessages());
-      // FIX 2: sale complete hone ke baad /sale (entry list) pe jao, detail pe nahi
-      navigate("/sale");
+      navigate(`/stock/${id}`);
     } else {
       toast.error(result.payload || "Kuch error aaya");
     }
   };
 
+  // Loading state
   if (loading && !bike) return <Spinner center size="lg" />;
   if (!bike) return null;
 
+  const isEdit = bike.status === "sold";
   const hasDue = Number(sale.cash.amountDue) > 0;
   const profit = Number(sale.sellPrice || 0) - (bike.purchase?.buyPrice || 0) - svcTotal;
 
   return (
     <div className="max-w-2xl space-y-4 pb-10">
 
-      {/* Bike info banner */}
-      <div className={`rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3 ${isEdit ? "bg-amber-900" : "bg-slate-900"}`}>
+      {/* Banner */}
+      <div className={`rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3 ${isEdit ? "bg-amber-950" : "bg-slate-900"}`}>
         <div>
           <p className="text-slate-400 text-xs mb-0.5">
-            {isEdit ? "✏️ Sale Edit Mode" : "Sale Entry For"}
+            {isEdit ? "✏️ Sale Edit Karo" : "Sale Entry For"}
           </p>
           <h2 className="font-display font-bold text-white text-xl">{bike.bikeName}</h2>
           <p className="text-slate-400 text-sm">
@@ -192,9 +197,7 @@ export default function SaleForm() {
           </p>
           {sale.sellPrice && (
             <>
-              <p className="text-slate-400 text-xs mt-1">
-                {isEdit ? "Updated Profit" : "Expected Profit"}
-              </p>
+              <p className="text-slate-400 text-xs mt-1">Profit</p>
               <p className={`font-bold text-lg ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
                 ₹{profit.toLocaleString("en-IN")}
               </p>
@@ -203,19 +206,19 @@ export default function SaleForm() {
         </div>
       </div>
 
-      {/* Edit mode warning */}
+      {/* Edit mode notice */}
       {isEdit && (
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
           <Pencil size={15} className="text-amber-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-amber-800 font-medium">
-            Ye bike pehle se sold hai. Yahan changes karoge toh sale ki details update ho jaayegi.
+            Ye bike pehle se sold hai. Changes save karne pe sale ki details update ho jaayegi.
           </p>
         </div>
       )}
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
-        {/* ── Customer Details ──────────────────────────────── */}
+        {/* Customer */}
         <Section title="👤 Customer Details">
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Customer Name" required error={errors["customer.name"]} icon={User}>
@@ -225,8 +228,7 @@ export default function SaleForm() {
                 placeholder="Rahul Sharma" />
             </Field>
             <Field label="Mobile Number" required error={errors["customer.mobile"]} icon={Phone}>
-              <input className={inp(!!errors["customer.mobile"])}
-                type="tel"
+              <input className={inp(!!errors["customer.mobile"])} type="tel"
                 value={sale.customer.mobile}
                 onChange={(e) => setField("customer.mobile", e.target.value)}
                 placeholder="98765 43210" />
@@ -240,9 +242,9 @@ export default function SaleForm() {
           </div>
         </Section>
 
-        {/* ── Service Details ───────────────────────────────── */}
+        {/* Service */}
         <Section title="🔧 Service Details">
-          <p className="text-xs text-slate-400 -mt-2 mb-3">Sale se pehle ki gayi service yahan daalo</p>
+          <p className="text-xs text-slate-400 -mt-2 mb-3">Sale se pehle ki gayi service</p>
           <div className="flex gap-2 mb-3">
             <input className={`${inp()} flex-[2]`} value={svcName}
               onChange={(e) => setSvcName(e.target.value)}
@@ -254,11 +256,10 @@ export default function SaleForm() {
                 onChange={(e) => setSvcCost(e.target.value)} placeholder="Cost" />
             </div>
             <button type="button" onClick={addSvc}
-              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-sm transition-colors">
+              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold transition-colors">
               <Plus size={16} />
             </button>
           </div>
-
           {svcItems.length > 0 && (
             <div className="border border-slate-100 rounded-xl overflow-hidden mb-3">
               {svcItems.map((item, i) => (
@@ -272,15 +273,15 @@ export default function SaleForm() {
                   </div>
                 </div>
               ))}
-              <div className="px-4 py-2 bg-orange-50 flex justify-between items-center">
-                <span className="text-xs font-bold text-orange-600 uppercase tracking-wide">Total Service</span>
+              <div className="px-4 py-2 bg-orange-50 flex justify-between">
+                <span className="text-xs font-bold text-orange-600 uppercase">Total Service</span>
                 <span className="font-bold text-orange-700">₹{svcTotal.toLocaleString("en-IN")}</span>
               </div>
             </div>
           )}
         </Section>
 
-        {/* ── RC Transfer ───────────────────────────────────── */}
+        {/* RC */}
         <Section title="📄 RC Transfer">
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-3 cursor-pointer">
@@ -295,7 +296,7 @@ export default function SaleForm() {
           </div>
         </Section>
 
-        {/* ── Sale Details ──────────────────────────────────── */}
+        {/* Sale Details */}
         <Section title="🤝 Sale Details">
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Voucher Number" icon={Hash}>
@@ -310,37 +311,28 @@ export default function SaleForm() {
                 placeholder="0" />
             </Field>
             <Field label="Sale Date">
-              <DateInput
-                value={sale.sellDate}
+              <DateInput value={sale.sellDate}
                 onChange={(iso) => setField("sellDate", iso)}
-                className={inp()}
-              />
+                className={inp()} />
             </Field>
           </div>
-
           <div className="grid sm:grid-cols-2 gap-4 mt-4">
             <Field label="Cash Mila (₹)">
-              <input className={inp()} type="number"
-                value={sale.cash.amountPaid}
-                onChange={(e) => setField("cash.amountPaid", e.target.value)}
-                placeholder="0" />
+              <input className={inp()} type="number" value={sale.cash.amountPaid}
+                onChange={(e) => setField("cash.amountPaid", e.target.value)} placeholder="0" />
             </Field>
             <Field label="Due Baaki (₹)">
-              <input className={inp()} type="number"
-                value={sale.cash.amountDue}
-                onChange={(e) => setField("cash.amountDue", e.target.value)}
-                placeholder="0" />
+              <input className={inp()} type="number" value={sale.cash.amountDue}
+                onChange={(e) => setField("cash.amountDue", e.target.value)} placeholder="0" />
             </Field>
             {hasDue && (
               <>
                 <Field label="Due Payment Date">
-                  <DateInput
-                    value={sale.cash.dueDate}
+                  <DateInput value={sale.cash.dueDate}
                     onChange={(iso) => setField("cash.dueDate", iso)}
-                    className={inp()}
-                  />
+                    className={inp()} />
                 </Field>
-                <Field label="Due Note (kab dega?)">
+                <Field label="Due Note">
                   <input className={inp()} value={sale.cash.dueNote}
                     onChange={(e) => setField("cash.dueNote", e.target.value)}
                     placeholder="e.g. Next month salary ke baad" />
@@ -350,14 +342,14 @@ export default function SaleForm() {
           </div>
         </Section>
 
-        {/* ── Submit ────────────────────────────────────────── */}
+        {/* Submit */}
         <div className="flex gap-3 justify-end pt-1">
           <button type="button" onClick={() => navigate(-1)}
             className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold transition-colors">
             <X size={15} /> Cancel
           </button>
           <button type="submit" disabled={loading}
-            className="flex items-center gap-2 px-8 py-2.5 bg-orange-500 hover:bg-orange-600 active:scale-[0.99] disabled:opacity-60 text-white rounded-xl text-sm font-bold transition-all min-w-[150px] justify-center">
+            className={`flex items-center gap-2 px-8 py-2.5 active:scale-[0.99] disabled:opacity-60 text-white rounded-xl text-sm font-bold transition-all min-w-[150px] justify-center ${isEdit ? "bg-amber-500 hover:bg-amber-600" : "bg-orange-500 hover:bg-orange-600"}`}>
             {loading ? <Spinner size="sm" /> : (
               <><Save size={15} /> {isEdit ? "Sale Update Karo" : "Sale Complete Karo"}</>
             )}
