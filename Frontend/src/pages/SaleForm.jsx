@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Save, X, User, Phone, MapPin, Hash, IndianRupee, Plus, Trash2 } from "lucide-react";
+import { Save, X, User, Phone, MapPin, Hash, IndianRupee, Plus, Trash2, Pencil } from "lucide-react";
 import {
   fetchBike, updateBike,
   selectCurrentBike, selectBikeLoading,
@@ -41,7 +41,7 @@ function Section({ title, children }) {
   );
 }
 
-const INIT_SALE = {
+const EMPTY_SALE = {
   voucherNumber: "",
   sellPrice: "",
   sellDate: new Date().toISOString().split("T")[0],
@@ -50,30 +50,54 @@ const INIT_SALE = {
 };
 
 export default function SaleForm() {
-  const { id }   = useParams();
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const loading  = useSelector(selectBikeLoading);
-  const bike     = useSelector(selectCurrentBike);
+  const { id }    = useParams();
+  const dispatch  = useDispatch();
+  const navigate  = useNavigate();
+  const loading   = useSelector(selectBikeLoading);
+  const bike      = useSelector(selectCurrentBike);
 
-  const [sale,     setSale]     = useState(INIT_SALE);
-  const [errors,   setErrors]   = useState({});
-  const [svcItems, setSvcItems] = useState([]);
-  const [svcName,  setSvcName]  = useState("");
-  const [svcCost,  setSvcCost]  = useState("");
+  const [sale,         setSale]         = useState(EMPTY_SALE);
+  const [errors,       setErrors]       = useState({});
+  const [svcItems,     setSvcItems]     = useState([]);
+  const [svcName,      setSvcName]      = useState("");
+  const [svcCost,      setSvcCost]      = useState("");
   const [rcTransferred, setRcTransferred] = useState(false);
+
+  // isEdit = bike already sold hai
+  const isEdit = bike?.status === "sold";
 
   useEffect(() => {
     dispatch(fetchBike(id));
     return () => dispatch(clearCurrentBike());
   }, [id, dispatch]);
 
+  // Agar bike sold hai toh existing data pre-fill karo
   useEffect(() => {
-    if (bike && bike.status === "sold") {
-      toast.error("Ye bike pehle se bech di gayi hai!");
-      navigate(`/stock/${id}`, { replace: true });
+    if (!bike) return;
+
+    if (bike.status === "sold") {
+      // Pre-fill existing sale data for editing
+      const s = bike.sale || {};
+      setSale({
+        voucherNumber: s.voucherNumber || "",
+        sellPrice:     s.sellPrice     || "",
+        sellDate:      s.sellDate ? new Date(s.sellDate).toISOString().split("T")[0] : "",
+        customer: {
+          name:    s.customer?.name    || "",
+          mobile:  s.customer?.mobile  || "",
+          address: s.customer?.address || "",
+        },
+        cash: {
+          amountPaid: s.cash?.amountPaid || "",
+          amountDue:  s.cash?.amountDue  || "",
+          dueDate:    s.cash?.dueDate ? new Date(s.cash.dueDate).toISOString().split("T")[0] : "",
+          dueNote:    s.cash?.dueNote    || "",
+        },
+      });
+      setSvcItems(bike.service?.items || []);
+      setRcTransferred(bike.rc?.transferred || false);
     }
-  }, [bike, id, navigate]);
+  }, [bike]);
 
   const setField = (path, value) => {
     setSale((prev) => {
@@ -132,15 +156,17 @@ export default function SaleForm() {
 
     const result = await dispatch(updateBike({ id, formData: payload }));
     if (!result.error) {
-      toast.success("Sale entry ho gayi!");
+      toast.success(isEdit ? "Sale update ho gayi! ✅" : "Sale entry ho gayi! 🎉");
       dispatch(clearBikeMessages());
-      navigate(`/stock/${id}`);
+      // FIX 2: sale complete hone ke baad /sale (entry list) pe jao, detail pe nahi
+      navigate("/sale");
     } else {
       toast.error(result.payload || "Kuch error aaya");
     }
   };
 
-  if (loading || !bike || bike.status === "sold") return <Spinner center size="lg" />;
+  if (loading && !bike) return <Spinner center size="lg" />;
+  if (!bike) return null;
 
   const hasDue = Number(sale.cash.amountDue) > 0;
   const profit = Number(sale.sellPrice || 0) - (bike.purchase?.buyPrice || 0) - svcTotal;
@@ -149,9 +175,11 @@ export default function SaleForm() {
     <div className="max-w-2xl space-y-4 pb-10">
 
       {/* Bike info banner */}
-      <div className="bg-slate-900 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
+      <div className={`rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3 ${isEdit ? "bg-amber-900" : "bg-slate-900"}`}>
         <div>
-          <p className="text-slate-400 text-xs mb-0.5">Sale Entry For</p>
+          <p className="text-slate-400 text-xs mb-0.5">
+            {isEdit ? "✏️ Sale Edit Mode" : "Sale Entry For"}
+          </p>
           <h2 className="font-display font-bold text-white text-xl">{bike.bikeName}</h2>
           <p className="text-slate-400 text-sm">
             {[bike.bikeMake, bike.year, bike.color].filter(Boolean).join(" • ")}
@@ -164,7 +192,9 @@ export default function SaleForm() {
           </p>
           {sale.sellPrice && (
             <>
-              <p className="text-slate-400 text-xs mt-1">Expected Profit</p>
+              <p className="text-slate-400 text-xs mt-1">
+                {isEdit ? "Updated Profit" : "Expected Profit"}
+              </p>
               <p className={`font-bold text-lg ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
                 ₹{profit.toLocaleString("en-IN")}
               </p>
@@ -172,6 +202,16 @@ export default function SaleForm() {
           )}
         </div>
       </div>
+
+      {/* Edit mode warning */}
+      {isEdit && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <Pencil size={15} className="text-amber-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-800 font-medium">
+            Ye bike pehle se sold hai. Yahan changes karoge toh sale ki details update ho jaayegi.
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
@@ -210,7 +250,8 @@ export default function SaleForm() {
               onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSvc())} />
             <div className="relative flex-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">₹</span>
-              <input className={`${inp()} pl-7`} type="number" value={svcCost} onChange={(e) => setSvcCost(e.target.value)} placeholder="Cost" />
+              <input className={`${inp()} pl-7`} type="number" value={svcCost}
+                onChange={(e) => setSvcCost(e.target.value)} placeholder="Cost" />
             </div>
             <button type="button" onClick={addSvc}
               className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-sm transition-colors">
@@ -317,7 +358,9 @@ export default function SaleForm() {
           </button>
           <button type="submit" disabled={loading}
             className="flex items-center gap-2 px-8 py-2.5 bg-orange-500 hover:bg-orange-600 active:scale-[0.99] disabled:opacity-60 text-white rounded-xl text-sm font-bold transition-all min-w-[150px] justify-center">
-            {loading ? <Spinner size="sm" /> : <><Save size={15} /> Sale Complete Karo</>}
+            {loading ? <Spinner size="sm" /> : (
+              <><Save size={15} /> {isEdit ? "Sale Update Karo" : "Sale Complete Karo"}</>
+            )}
           </button>
         </div>
       </form>

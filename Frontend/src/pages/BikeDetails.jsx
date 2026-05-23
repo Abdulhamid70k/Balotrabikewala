@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Pencil, Trash2, Printer, ArrowLeft, IndianRupee, User, Phone, MapPin, CreditCard, Calendar, ShoppingCart } from "lucide-react";
+import { Pencil, Trash2, Printer, ArrowLeft, IndianRupee, User, Phone, MapPin, Calendar, ShoppingCart } from "lucide-react";
 import { fetchBike, deleteBike, selectCurrentBike, selectBikeLoading } from "../features/bikes/bikeSlice";
 import { selectIsAdmin } from "../features/auth/authSlice";
 import { StatusBadge, Spinner } from "../components/UI";
@@ -62,6 +62,7 @@ export default function BikeDetail() {
 
   return (
     <div className="space-y-4 max-w-3xl">
+
       {/* Top bar */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -76,21 +77,34 @@ export default function BikeDetail() {
             {[bike.bikeMake, bike.year, bike.color, bike.registrationNumber].filter(Boolean).join(" • ")}
           </p>
         </div>
+
         <div className="flex flex-wrap gap-2">
           <button onClick={() => window.print()}
             className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold transition-colors">
             <Printer size={15} /> Print
           </button>
+
+          {/* In-stock bike: Sell button */}
           {bike.status === "in_stock" && (
             <Link to={`/stock/${id}/sell`}
               className="flex items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
               <ShoppingCart size={15} /> Sell Karo
             </Link>
           )}
+
+          {/* Sold bike: Edit Sale button — FIX 1 */}
+          {bike.status === "sold" && (
+            <Link to={`/stock/${id}/sell`}
+              className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
+              <Pencil size={15} /> Edit Sale
+            </Link>
+          )}
+
           <Link to={`/stock/${id}/edit`}
             className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-xl text-sm font-semibold transition-colors">
             <Pencil size={15} /> Edit
           </Link>
+
           {isAdmin && (
             <button onClick={handleDelete}
               className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl text-sm font-semibold transition-colors">
@@ -111,7 +125,7 @@ export default function BikeDetail() {
             <span>Sell {fmt(bike.sale?.sellPrice)}</span>
             <span>− Buy {fmt(bike.purchase?.buyPrice)}</span>
             <span>− Service {fmt(bike.service?.totalCost)}</span>
-            {bike.rc?.transferred && <span>− RC {fmt(bike.rc?.charge)}</span>}
+            {bike.rc?.transferred && <span>− RC ✅</span>}
           </div>
         </div>
       )}
@@ -147,13 +161,7 @@ export default function BikeDetail() {
         </InfoCard>
 
         <InfoCard title="📄 RC Transfer">
-          <Row label="RC Transfer" value={bike.rc?.transferred ? "✅ Haan" : "❌ Nahi"} />
-          {bike.rc?.transferred && (
-            <>
-              <Row label="Charge"        value={fmt(bike.rc?.charge)} highlight />
-              <Row label="Transfer Date" value={fmtD(bike.rc?.transferDate)} />
-            </>
-          )}
+          <Row label="RC Transfer" value={bike.rc?.transferred ? "✅ Yes" : "❌ No"} />
         </InfoCard>
 
         {bike.status === "sold" && (
@@ -167,25 +175,14 @@ export default function BikeDetail() {
         {bike.status === "sold" && (
           <InfoCard title="🤝 Sale Voucher">
             {bike.sale?.voucherNumber && <Row label="Voucher No." value={bike.sale.voucherNumber} />}
-            <Row label="Sell Price"   value={fmt(bike.sale?.sellPrice)} highlight />
-            <Row label="Sell Date"    value={fmtD(bike.sale?.sellDate)} icon={Calendar} />
-            <Row label="Payment"      value={bike.sale?.paymentType === "finance" ? "Finance 🏦" : "Cash 💵"} icon={CreditCard} />
-            {bike.sale?.paymentType === "cash" ? (
+            <Row label="Sell Price" value={fmt(bike.sale?.sellPrice)} highlight />
+            <Row label="Sell Date"  value={fmtD(bike.sale?.sellDate)} icon={Calendar} />
+            <Row label="Cash Mila"  value={fmt(bike.sale?.cash?.amountPaid)} />
+            <Row label="Due Baaki"  value={fmt(bike.sale?.cash?.amountDue)} />
+            {hasDue && (
               <>
-                <Row label="Cash Mila"  value={fmt(bike.sale?.cash?.amountPaid)} />
-                <Row label="Due Baaki"  value={fmt(bike.sale?.cash?.amountDue)} />
-                {hasDue && (
-                  <>
-                    <Row label="Due Date"  value={fmtD(bike.sale?.cash?.dueDate)} />
-                    {bike.sale?.cash?.dueNote && <Row label="Due Note" value={bike.sale.cash.dueNote} />}
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <Row label="Company"        value={bike.sale?.finance?.companyName || "—"} />
-                <Row label="Finance Amount" value={fmt(bike.sale?.finance?.financeAmount)} />
-                <Row label="EMI"            value={`${fmt(bike.sale?.finance?.emiAmount)} × ${bike.sale?.finance?.emiMonths} months`} />
+                <Row label="Due Date" value={fmtD(bike.sale?.cash?.dueDate)} />
+                {bike.sale?.cash?.dueNote && <Row label="Due Note" value={bike.sale.cash.dueNote} />}
               </>
             )}
           </InfoCard>
@@ -199,15 +196,9 @@ export default function BikeDetail() {
         </div>
       )}
 
-      {/* ─── PRINT VOUCHER ──────────────────────────────────── */}
+      {/* Print voucher */}
       <div className="hidden print:block">
-        <style>{`
-          @media print {
-            body > *:not(.print-voucher) { display: none !important; }
-          }
-        `}</style>
         <div style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", maxWidth: "600px", margin: "0 auto" }}>
-          {/* Header */}
           <div style={{ borderBottom: "3px solid #f97316", paddingBottom: "10px", marginBottom: "16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -219,34 +210,28 @@ export default function BikeDetail() {
               <div style={{ textAlign: "right", color: "#666" }}>
                 <div>Date: {new Date().toLocaleDateString("en-IN")}</div>
                 {bike.sale?.voucherNumber && <div style={{ fontWeight: "700" }}>Voucher: {bike.sale.voucherNumber}</div>}
-                {bike.purchase?.voucherNumber && <div>Purchase Ref: {bike.purchase.voucherNumber}</div>}
               </div>
             </div>
           </div>
-
-          {/* Bike info */}
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "12px" }}>
             <tbody>
               {[
-                ["Bike Name",     bike.bikeName],
-                ["Make / Model",  bike.bikeMake || "—"],
-                ["Year",          bike.year || "—"],
-                ["Color",         bike.color || "—"],
-                ["Reg. Number",   bike.registrationNumber || "—"],
+                ["Bike Name",    bike.bikeName],
+                ["Make",         bike.bikeMake || "—"],
+                ["Year",         bike.year || "—"],
+                ["Color",        bike.color || "—"],
+                ["Reg. Number",  bike.registrationNumber || "—"],
                 bike.status === "sold" ? ["Customer",  bike.sale?.customer?.name || "—"] : null,
                 bike.status === "sold" ? ["Mobile",    bike.sale?.customer?.mobile || "—"] : null,
-                bike.status === "sold" ? ["Address",   bike.sale?.customer?.address || "—"] : null,
-                ["Buy From",      bike.purchase?.buyFrom || "—"],
-                ["Buy Date",      fmtD(bike.purchase?.buyDate)],
-                ["Buy Price",     fmt(bike.purchase?.buyPrice)],
-                ["Service Cost",  fmt(bike.service?.totalCost)],
-                ["RC Transfer",   bike.rc?.transferred ? `Yes — ${fmt(bike.rc?.charge)}` : "No"],
-                bike.status === "sold" ? ["Sell Date",   fmtD(bike.sale?.sellDate)] : null,
-                bike.status === "sold" ? ["Sell Price",  fmt(bike.sale?.sellPrice)] : null,
-                bike.status === "sold" ? ["Payment",     bike.sale?.paymentType === "finance" ? `Finance — ${bike.sale?.finance?.companyName}` : "Cash"] : null,
-                (bike.status === "sold" && bike.sale?.paymentType === "cash") ? ["Cash Paid", fmt(bike.sale?.cash?.amountPaid)] : null,
+                ["Buy From",     bike.purchase?.buyFrom || "—"],
+                ["Buy Date",     fmtD(bike.purchase?.buyDate)],
+                ["Buy Price",    fmt(bike.purchase?.buyPrice)],
+                ["Service Cost", fmt(bike.service?.totalCost)],
+                ["RC Transfer",  bike.rc?.transferred ? "Yes ✅" : "No ❌"],
+                bike.status === "sold" ? ["Sell Date",  fmtD(bike.sale?.sellDate)] : null,
+                bike.status === "sold" ? ["Sell Price", fmt(bike.sale?.sellPrice)] : null,
+                bike.status === "sold" ? ["Cash Paid",  fmt(bike.sale?.cash?.amountPaid)] : null,
                 (bike.status === "sold" && hasDue) ? ["Due Amount", fmt(bike.sale?.cash?.amountDue)] : null,
-                (bike.status === "sold" && hasDue) ? ["Due Date",   fmtD(bike.sale?.cash?.dueDate)] : null,
                 profit !== null ? ["NET PROFIT / LOSS", fmt(profit)] : null,
               ].filter(Boolean).map(([k, v]) => (
                 <tr key={k} style={{ borderBottom: "1px solid #eee" }}>
@@ -256,7 +241,6 @@ export default function BikeDetail() {
               ))}
             </tbody>
           </table>
-
           <div style={{ borderTop: "1px dashed #ccc", paddingTop: "10px", display: "flex", justifyContent: "space-between", marginTop: "20px" }}>
             <div style={{ textAlign: "center" }}>
               <div style={{ borderTop: "1px solid #333", marginTop: "30px", paddingTop: "4px", width: "120px", fontSize: "11px" }}>Buyer Signature</div>
